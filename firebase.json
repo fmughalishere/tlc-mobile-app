@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"tlc-med-clinic","appId":"1:561232508156:android:356c7d1013663067401379","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"tlc-med-clinic","configurations":{"android":"1:561232508156:android:356c7d1013663067401379","ios":"1:561232508156:ios:a02833119906ee96401379"}}}}}}

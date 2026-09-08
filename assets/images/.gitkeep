@@ -1,0 +1,3 @@
+# The logo and illustrations go here. The folder must exist even while it is
+# empty, because pubspec.yaml declares it as an asset directory and Flutter
+# refuses to build if a declared directory is missing.

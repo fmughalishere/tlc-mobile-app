@@ -1,0 +1,58 @@
+name: tlc_med_clinics
+description: "TLC Med Clinics — appointments, telemedicine and skin care, for patients, doctors and staff."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.2
+
+# ── On the choice of packages ────────────────────────────────────────────────
+#
+# This list is deliberately short and deliberately boring, and that is an
+# engineering decision rather than a taste one.
+#
+#   · Navigation uses Flutter's own Navigator, not go_router. go_router is the
+#     richer tool, and its API has changed shape several times; Navigator's has
+#     not changed in years.
+#   · Networking uses `http`, not dio.
+#   · State uses `provider`, not riverpod.
+#
+# Once the project compiles and we can see real errors, any of these can be
+# swapped for something richer.
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Firebase — the same project the website already uses. Auth carries the ID
+  # token that every /api/* call is authorised with; Firestore powers the live
+  # screens (appointments, chat, notifications) exactly as it does on the web.
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_messaging: ^15.1.3
+
+  http: ^1.2.2
+  provider: ^6.1.2
+  shared_preferences: ^2.3.2
+  url_launcher: ^6.3.0
+  google_fonts: ^6.2.1
+
+  # No version pin: flutter_localizations pins `intl` itself, and disagreeing
+  # with it is the single most common reason `flutter pub get` fails.
+  intl: any
+
+  # The video consultation. The WebView is the first implementation, not the
+  # last one — see the notes when we get to stage 5.
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

@@ -1,0 +1,118 @@
+{
+  "project_info": {
+    "project_number": "561232508156",
+    "project_id": "tlc-med-clinic",
+    "storage_bucket": "tlc-med-clinic.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561232508156:android:9b6205b5cada20ae401379",
+        "android_client_info": {
+          "package_name": "com.example.tlc_med_clinic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "561232508156-3g8m742ndv1jcn98cohbmp5fk0e7r6lt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAK-jgDnuUS1y-2K3oZ0IG4qgayegOXzwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "561232508156-3g8m742ndv1jcn98cohbmp5fk0e7r6lt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "561232508156-4e76hmlaieqb5j4er44mj9vuvml9bjb9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tlcmedclinics.tlcMedClinics"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561232508156:android:e0d678c91f878fc9401379",
+        "android_client_info": {
+          "package_name": "com.tlcmedclinic.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "561232508156-3g8m742ndv1jcn98cohbmp5fk0e7r6lt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAK-jgDnuUS1y-2K3oZ0IG4qgayegOXzwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "561232508156-3g8m742ndv1jcn98cohbmp5fk0e7r6lt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "561232508156-4e76hmlaieqb5j4er44mj9vuvml9bjb9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tlcmedclinics.tlcMedClinics"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561232508156:android:356c7d1013663067401379",
+        "android_client_info": {
+          "package_name": "com.tlcmedclinics.tlc_med_clinics"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "561232508156-3g8m742ndv1jcn98cohbmp5fk0e7r6lt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAK-jgDnuUS1y-2K3oZ0IG4qgayegOXzwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "561232508156-3g8m742ndv1jcn98cohbmp5fk0e7r6lt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "561232508156-4e76hmlaieqb5j4er44mj9vuvml9bjb9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tlcmedclinics.tlcMedClinics"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
