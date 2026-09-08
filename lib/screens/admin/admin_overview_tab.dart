@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../data/repository.dart';
