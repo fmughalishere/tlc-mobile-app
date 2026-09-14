@@ -1,9 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/config.dart';
 import '../../core/formatting.dart';
+import '../../core/google_auth.dart';
 import '../../core/palette.dart';
+import '../../core/session.dart';
+import '../../data/repository.dart';
+import '../../i18n/strings.dart';
 import '../../widgets/common.dart';
 import 'phone_login_screen.dart';
 import 'register_screen.dart';
@@ -29,7 +36,20 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _repo = Repository();
+
+  /// Which door they think they are coming through.
+  ///
+  /// It is worth being clear about what this does and does not do. The role
+  /// lives on the account, not on this screen — a patient who taps "I'm a
+  /// doctor" is still a patient, and no switch here could change that without
+  /// being a security hole. What it does is set expectations, and catch the
+  /// mistake out loud: if the account turns out to be something else, the app
+  /// says so before it takes them somewhere they were not expecting.
+  AccountRole _role = AccountRole.patient;
+
   bool _busy = false;
+  bool _google = false;
   bool _obscure = true;
   String? _error;
 
@@ -37,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _repo.close();
     super.dispose();
   }
 
@@ -45,11 +66,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _password.text;
 
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = context.l10n.t('auth.needEmail'));
+      setState(() => _error = context.read<LocaleController>().t('auth.needEmail'));
       return;
     }
     if (password.length < 6) {
-      setState(() => _error = context.l10n.t('auth.needPassword'));
+      setState(() => _error = context.read<LocaleController>().t('auth.needPassword'));
       return;
     }
 
@@ -59,11 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance
+      final credential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
-      // Nothing to do on success: Session is listening to authStateChanges and
-      // the gate above this screen swaps it out. Navigating from here as well
-      // would race that and pop a screen that has already been replaced.
+      await _sayIfRoleDiffers(credential.user?.uid);
+      // Nothing else to do on success: Session is listening to
+      // authStateChanges and the gate above this screen swaps it out.
+      // Navigating from here as well would race that and pop a screen that
+      // has already been replaced.
       if (mounted) widget.onDone?.call();
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _readable(e));
@@ -74,15 +97,109 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Says so, out loud, when the account is not the kind they picked.
+  ///
+  /// The switch above the form is a statement of expectation, and the honest
+  /// thing to do with an expectation that turns out to be wrong is to name it.
+  /// Without this, a doctor who left the switch on "patient" would simply find
+  /// themselves in the doctor app with no explanation, and would reasonably
+  /// wonder whether the switch had done something they did not intend.
+  ///
+  /// The message is a toast rather than a dialog because it is information,
+  /// not a decision — there is nothing for them to do about it, and the app is
+  /// already taking them to the right place. `ScaffoldMessenger` lives above
+  /// the gate, so the toast survives this screen being swapped out from under
+  /// it a frame later.
+  Future<void> _sayIfRoleDiffers(String? uid) async {
+    if (uid == null) return;
+    final l10n = context.read<LocaleController>();
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 6));
+      final actual = roleFrom(snap.data()?['role']);
+
+      // An unknown role means the profile has not arrived or has none on it.
+      // Saying nothing is right: the app already treats that as "patient for
+      // now", and announcing a role we are not sure of would be worse than
+      // saying nothing at all.
+      if (actual == Role.unknown) return;
+
+      final expected =
+          _role == AccountRole.doctor ? Role.doctor : Role.patient;
+      if (actual == expected) return;
+
+      if (!mounted) return;
+      showToast(
+        context,
+        switch (actual) {
+          Role.doctor => l10n.t('auth.roleDoctorActually'),
+          Role.admin => l10n.t('auth.roleAdminActually'),
+          _ => l10n.t('auth.rolePatientActually'),
+        },
+      );
+    } catch (error) {
+      // Purely cosmetic, so a failure here must never fail the sign-in. They
+      // are already in; the gate will route them correctly regardless.
+      debugPrint('[login] role check failed: $error');
+    }
+  }
+
+  /// Google, on the sign-in screen.
+  ///
+  /// A Google account that has never been here before is created as a patient,
+  /// which is what the website does from this same button. Someone applying to
+  /// join as a doctor goes through Create account, where they can say so and
+  /// give a specialisation — an application, not a sign-in.
+  Future<void> _continueWithGoogle() async {
+    setState(() {
+      _google = true;
+      _error = null;
+    });
+    try {
+      final result = await signInWithGoogle(repository: _repo);
+      if (result.cancelled) return;
+      if (!mounted) return;
+      // Nothing to navigate here either: Session hears the auth change and the
+      // gate replaces this screen.
+      widget.onDone?.call();
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _error = _readable(e));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = _googleMessage(e));
+      }
+    } finally {
+      if (mounted) setState(() => _google = false);
+    }
+  }
+
+  /// Google's own failures are terse and numeric — `PlatformException(sign_in
+  /// _failed, ..., 10, null)` is the famous one, and it means exactly one
+  /// thing: this build's signing fingerprint is not registered in the Firebase
+  /// project. Saying that plainly is the difference between a five-minute fix
+  /// and an afternoon.
+  String _googleMessage(Object error) {
+    final text = error.toString();
+    if (text.contains('sign_in_failed') || text.contains('ApiException: 10')) {
+      return 'Google sign-in is not set up for this build yet — the app\'s '
+          'SHA-1 fingerprint needs adding in the Firebase console.';
+    }
+    if (text.contains('network')) return context.read<LocaleController>().t('common.offline');
+    return context.read<LocaleController>().t('auth.googleFailed');
+  }
+
   Future<void> _resetPassword() async {
     final email = _email.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = context.l10n.t('auth.needEmail'));
+      setState(() => _error = context.read<LocaleController>().t('auth.needEmail'));
       return;
     }
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted) showToast(context, context.l10n.t('auth.resetSent'));
+      if (mounted) showToast(context, context.read<LocaleController>().t('auth.resetSent'));
     } on FirebaseAuthException catch (e) {
       if (mounted) showToast(context, _readable(e), error: true);
     }
@@ -99,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'invalid-email':
         return 'That email address does not look right.';
       case 'user-disabled':
-        return context.l10n.t('auth.blocked');
+        return context.read<LocaleController>().t('auth.blocked');
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
@@ -107,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'too-many-requests':
         return 'Too many attempts. Please wait a few minutes.';
       case 'network-request-failed':
-        return context.l10n.t('common.offline');
+        return context.read<LocaleController>().t('common.offline');
       default:
         return e.message ?? 'Could not sign you in.';
     }
@@ -146,11 +263,23 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              l10n.t('auth.welcomeSub'),
+              l10n.t(_role == AccountRole.doctor
+                  ? 'auth.doctorLoginIntro'
+                  : 'auth.welcomeSub'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 26),
+
+            const SizedBox(height: 20),
+            RoleSwitch(
+              role: _role,
+              enabled: !(_busy || _google),
+              onChanged: (r) => setState(() {
+                _role = r;
+                _error = null;
+              }),
+            ),
+            const SizedBox(height: 22),
 
             TextField(
               controller: _email,
@@ -188,7 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
-                onPressed: _busy ? null : _resetPassword,
+                onPressed: (_busy || _google) ? null : _resetPassword,
                 child: Text(l10n.t('auth.forgot')),
               ),
             ),
@@ -212,7 +341,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _busy ? null : _signIn,
+                onPressed: (_busy || _google) ? null : _signIn,
                 child: _busy
                     ? const SizedBox(
                         width: 18,
@@ -227,22 +356,20 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
 
             const SizedBox(height: 18),
-            Row(
-              children: const [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('or', style: TextStyle(color: Palette.inkSoft, fontSize: 12)),
-                ),
-                Expanded(child: Divider()),
-              ],
-            ),
+            OrDivider(label: l10n.t('auth.or')),
             const SizedBox(height: 18),
 
+            GoogleButton(
+              busy: _google,
+              onPressed: _busy ? null : _continueWithGoogle,
+              label: l10n.t('auth.continueWithGoogle'),
+            ),
+
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _busy
+                onPressed: (_busy || _google)
                     ? null
                     : () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -263,7 +390,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: const TextStyle(fontSize: 13, color: Palette.inkSoft),
                 ),
                 TextButton(
-                  onPressed: _busy
+                  onPressed: (_busy || _google)
                       ? null
                       : () => Navigator.of(context).push(
                             MaterialPageRoute<void>(

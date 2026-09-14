@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/email_verification.dart';
 import '../core/palette.dart';
 import '../core/session.dart';
 import '../data/app_data.dart';
 import '../widgets/common.dart';
 import 'admin/admin_shell.dart';
 import 'auth/login_screen.dart';
+import 'auth/verify_email_screen.dart';
 import 'doctor/doctor_shell.dart';
 import 'patient/patient_shell.dart';
 import 'splash_screen.dart';
@@ -110,6 +112,12 @@ class _BootGateState extends State<BootGate> {
       child = const LoginScreen();
     } else if (session.blocked) {
       child = const _SuspendedScreen();
+    } else if (needsEmailVerification(session.user)) {
+      // Checked here rather than inside the sign-in screen, because there are
+      // three ways to arrive signed-in — creating an account, signing in, and
+      // simply reopening the app tomorrow — and all three have to end at the
+      // same place. One gate is also one thing to get right.
+      child = const VerifyEmailScreen();
     } else if (session.role == Role.doctor) {
       child = const DoctorShell();
     } else if (session.role == Role.admin) {

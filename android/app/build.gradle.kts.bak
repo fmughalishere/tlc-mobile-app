@@ -11,21 +11,7 @@ plugins {
 android {
     namespace = "com.tlcmedclinics.tlc_med_clinics"
     compileSdk = flutter.compileSdkVersion
-
-    // `ndkVersion` is deliberately not set.
-    //
-    // The NDK compiles C and C++, and this app contains none. Every package it
-    // uses — Firebase, webview_flutter, google_sign_in — ships its Android
-    // side as Java/Kotlin, or as .so files already built by somebody else.
-    // Naming an NDK version here made Gradle insist on having one: it
-    // downloaded a gigabyte of toolchain, the download was interrupted, and
-    // every build after that failed on a half-written folder for a tool
-    // nothing was going to call.
-    //
-    // If a package with native code is ever added, Gradle will say so plainly
-    // ("No version of NDK matched…"). At that point put the line back:
-    //
-    //     ndkVersion = flutter.ndkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         // Firebase's Android libraries ship class files that need desugaring on

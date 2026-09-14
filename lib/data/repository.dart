@@ -227,21 +227,37 @@ class Repository {
   }
 
   /// Called right after a Firebase account is created. It is what turns an
-  /// authenticated stranger into a patient: it sets the role claim and writes
-  /// the `users/{uid}` document every other route reads.
-  Future<void> registerProfile({
+  /// authenticated stranger into a patient — or into a doctor waiting to be
+  /// approved: it sets the role claim and writes the `users/{uid}` document
+  /// every other route reads.
+  ///
+  /// `role` can only ever be patient or doctor. The server enforces that too —
+  /// an admin account is made by a script at the clinic, never by anyone
+  /// filling in a form — but sending it honestly from here keeps the app and
+  /// the website telling the same story.
+  ///
+  /// Returns true when the account was created as a doctor awaiting approval,
+  /// so the screen can say so rather than dropping them into a dashboard that
+  /// will refuse them.
+  Future<bool> registerProfile({
     required String uid,
     required String name,
     String? email,
     String? phone,
+    String role = 'patient',
+    String? specialization,
   }) async {
-    await _api.post('/api/auth/register', {
+    final wantsDoctor = role == 'doctor';
+    final body = _map(await _api.post('/api/auth/register', {
       'uid': uid,
       'name': name,
       if (email != null && email.isNotEmpty) 'email': email,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
-      'role': 'patient',
-    });
+      'role': wantsDoctor ? 'doctor' : 'patient',
+      if (wantsDoctor && specialization != null && specialization.trim().isNotEmpty)
+        'specialization': specialization.trim(),
+    }));
+    return body['approvalStatus'] == 'pending' || (wantsDoctor && body['role'] == 'doctor');
   }
 
   // ── Notifications ─────────────────────────────────────────────────────────

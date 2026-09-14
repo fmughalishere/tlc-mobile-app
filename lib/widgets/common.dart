@@ -535,6 +535,219 @@ String errorText(Object error) {
   return 'Something went wrong. Please try again.';
 }
 
+/// Patient or doctor.
+///
+/// Public, and in this file rather than in one screen, because both the
+/// sign-in and the create-account screens ask it and they have to look and
+/// behave identically — a switch that sits half a pixel differently on the
+/// next screen reads as a different control.
+enum AccountRole { patient, doctor }
+
+/// The patient / doctor switch: two halves of one pill.
+///
+/// Two halves rather than a dropdown, because there are exactly two answers
+/// and the choice changes what the rest of the screen asks for. Which one is
+/// selected should be readable at a glance, not one line of text inside a
+/// closed menu.
+class RoleSwitch extends StatelessWidget {
+  const RoleSwitch({
+    super.key,
+    required this.role,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  final AccountRole role;
+  final bool enabled;
+  final void Function(AccountRole) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    Widget half(AccountRole value, String label, IconData icon) {
+      final selected = role == value;
+      return Expanded(
+        child: Material(
+          color: selected ? Palette.indigo : Colors.transparent,
+          borderRadius: BorderRadius.circular(Palette.radiusPill),
+          child: InkWell(
+            onTap: enabled ? () => onChanged(value) : null,
+            borderRadius: BorderRadius.circular(Palette.radiusPill),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: selected ? Palette.paper : Palette.inkSoft,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? Palette.paper : Palette.inkSoft,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Palette.line),
+        borderRadius: BorderRadius.circular(Palette.radiusPill),
+      ),
+      child: Row(
+        children: [
+          half(AccountRole.patient, l10n.t('auth.imPatient'),
+              Icons.person_outline_rounded),
+          half(AccountRole.doctor, l10n.t('auth.imDoctor'),
+              Icons.medical_services_outlined),
+        ],
+      ),
+    );
+  }
+}
+
+/// Google's own mark, drawn rather than shipped as a PNG.
+///
+/// Google's brand guidelines are specific about this button: their four
+/// colours, unaltered, at a legible size. Drawing it means it stays sharp on
+/// every screen density and adds nothing to the download.
+class GoogleMark extends StatelessWidget {
+  const GoogleMark({super.key, this.size = 18});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _GooglePainter()),
+    );
+  }
+}
+
+class _GooglePainter extends CustomPainter {
+  /// The G as four stroked arcs and one bar.
+  ///
+  /// A stroked arc rather than a filled wedge: the ring's thickness is then a
+  /// single number instead of two radii and a boolean operation, and there is
+  /// no path arithmetic that could go wrong at an unusual size.
+  static const _degree = 0.017453292519943295; // one degree, in radians
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    final centre = Offset(size.width / 2, size.height / 2);
+    final radius = s * 0.36;
+    final stroke = s * 0.26;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+
+    final box = Rect.fromCircle(center: centre, radius: radius);
+
+    void arc(Color color, double startTurns, double sweepTurns) {
+      paint.color = color;
+      canvas.drawArc(box, startTurns, sweepTurns, false, paint);
+    }
+
+    // Angles run clockwise from three o'clock, as everywhere else in Flutter.
+    arc(const Color(0xFFEA4335), -125 * _degree, 70 * _degree); // red, top left
+    arc(const Color(0xFFFBBC05), 125 * _degree, 110 * _degree); // yellow, left
+    arc(const Color(0xFF34A853), 40 * _degree, 85 * _degree); // green, bottom
+    arc(const Color(0xFF4285F4), -55 * _degree, 95 * _degree); // blue, right
+
+    // The bar into the centre, which is what turns a ring into a G.
+    canvas.drawRect(
+      Rect.fromLTRB(
+        centre.dx,
+        centre.dy - stroke * 0.38,
+        centre.dx + radius + stroke / 2,
+        centre.dy + stroke * 0.38,
+      ),
+      Paint()..color = const Color(0xFF4285F4),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// The "Continue with Google" button, identical on both auth screens.
+class GoogleButton extends StatelessWidget {
+  const GoogleButton({
+    super.key,
+    required this.onPressed,
+    required this.busy,
+    required this.label,
+  });
+
+  final VoidCallback? onPressed;
+  final bool busy;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: busy ? null : onPressed,
+        icon: busy
+            ? const SizedBox(
+                width: 17,
+                height: 17,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const GoogleMark(size: 18),
+        label: Text(label),
+      ),
+    );
+  }
+}
+
+/// The "or" rule between the form and the other ways in.
+class OrDivider extends StatelessWidget {
+  const OrDivider({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            label,
+            style: const TextStyle(color: Palette.inkSoft, fontSize: 12),
+          ),
+        ),
+        const Expanded(child: Divider()),
+      ],
+    );
+  }
+}
+
 /// A toast that says what actually happened.
 void showToast(BuildContext context, String message, {bool error = false}) {
   ScaffoldMessenger.of(context)

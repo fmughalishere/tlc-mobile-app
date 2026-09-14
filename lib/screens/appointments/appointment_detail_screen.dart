@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../data/repository.dart';
+import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import 'rate_visit_screen.dart';
@@ -36,7 +38,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   Future<void> _cancel() async {
-    final l10n = context.l10n;
+    final l10n = context.read<LocaleController>();
 
     final confirmed = await showDialog<bool>(
       context: context,

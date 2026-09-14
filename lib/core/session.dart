@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import 'google_auth.dart';
+
 /// Who is signed in, and what they are allowed to see.
 ///
 /// This is the app's copy of the website's AuthContext, and it follows the
@@ -99,6 +101,31 @@ class Session extends ChangeNotifier {
     );
   }
 
+  /// Re-reads the Firebase user and tells everyone listening.
+  ///
+  /// `authStateChanges` does not fire when something about the *same* user
+  /// changes — and email verification is exactly that: the person taps a link
+  /// in their inbox and the account's `emailVerified` flips somewhere else
+  /// entirely. Without this the app would keep showing the "verify your
+  /// email" screen to somebody who has just verified their email, which is
+  /// the most infuriating possible outcome of doing what you were asked.
+  ///
+  /// Returns the fresh user so the caller can see what changed.
+  Future<User?> reloadUser() async {
+    final current = FirebaseAuth.instance.currentUser;
+    if (current == null) return null;
+    try {
+      await current.reload();
+    } catch (error) {
+      // Offline, or the account was deleted at the other end. Either way the
+      // cached user is the best we have; the caller decides what to say.
+      debugPrint('[Session] reload failed: $error');
+    }
+    _user = FirebaseAuth.instance.currentUser;
+    notifyListeners();
+    return _user;
+  }
+
   /// Signs out, and — importantly — moves the UI immediately.
   ///
   /// The naive version awaits `FirebaseAuth.signOut()` and lets the auth
@@ -123,6 +150,10 @@ class Session extends ChangeNotifier {
     _ready = true;
     notifyListeners();
 
+    // Google first and unawaited-on-failure: if this account came in through
+    // "Continue with Google", leaving the Google session behind means the next
+    // person to tap that button is signed straight back in as the last one.
+    await signOutFromGoogle();
     await FirebaseAuth.instance.signOut();
   }
 

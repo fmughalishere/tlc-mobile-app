@@ -22,4 +22,27 @@ class AppConfig {
   static const clinicPhoneE164 = '+923100404444';
   static const clinicPhoneDisplay = '+92 310 040 4444';
   static const supportEmail = 'info@tlcmedclinics.com';
+
+  /// Email verification starts applying to accounts created on or after this
+  /// date, and never to older ones.
+  ///
+  /// ── Why a date and not simply "everyone" ──
+  ///
+  /// Every patient who signed up on the website before today did so through a
+  /// form that never asked them to verify anything. Turning the rule on for
+  /// all of them at once would meet each of those people, the next time they
+  /// opened the app, with a wall — for a step they were never told about, on
+  /// an inbox some of them signed up with years ago and may no longer read.
+  /// That is a real cost paid by people who did nothing wrong.
+  ///
+  /// So the rule looks forward. Accounts made from here on must verify;
+  /// accounts that already exist keep working exactly as they do today. The
+  /// clinic loses nothing — nobody was verifying before either — and gains a
+  /// checked email address on every account from now on.
+  ///
+  /// The check is in `needsEmailVerification` (core/email_verification.dart),
+  /// which is also where the other exemptions live: a phone-only account has
+  /// no email to verify, and a Google account arrives already verified by
+  /// Google.
+  static final verifyEmailFrom = DateTime.utc(2026, 9, 14);
 }

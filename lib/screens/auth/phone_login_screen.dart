@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../data/repository.dart';
+import '../../i18n/strings.dart';
 import '../../widgets/common.dart';
 
 /// Signing in with a phone number and a 6-digit code.
@@ -52,7 +54,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   Future<void> _sendCode() async {
     final e164 = Fmt.toE164(_phone.text);
     if (e164 == null) {
-      setState(() => _error = context.l10n.t('auth.needPhone'));
+      setState(() => _error = context.read<LocaleController>().t('auth.needPhone'));
       return;
     }
 
@@ -114,7 +116,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     final code = _code.text.trim();
     if (id == null) return;
     if (code.length < 6) {
-      setState(() => _error = context.l10n.t('auth.enterCode'));
+      setState(() => _error = context.read<LocaleController>().t('auth.enterCode'));
       return;
     }
 
@@ -165,7 +167,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   String _readable(FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-phone-number':
-        return context.l10n.t('auth.needPhone');
+        return context.read<LocaleController>().t('auth.needPhone');
       case 'invalid-verification-code':
         return 'That code is not right. Check it and try again.';
       case 'session-expired':
@@ -173,7 +175,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       case 'too-many-requests':
         return 'Too many attempts. Please wait a few minutes.';
       case 'network-request-failed':
-        return context.l10n.t('common.offline');
+        return context.read<LocaleController>().t('common.offline');
       case 'app-not-authorized':
       case 'missing-client-identifier':
         // The precise wording matters here: without it this reads as a bug in

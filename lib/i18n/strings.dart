@@ -78,6 +78,52 @@ class Strings {
     'auth.needPassword': 'Password must be at least 6 characters.',
     'auth.needPhone': "That phone number doesn't look right.",
     'auth.phoneHelp': 'We will text you a 6-digit code.',
+    'auth.or': 'or',
+    'auth.continueWithGoogle': 'Continue with Google',
+    'auth.googleFailed': "Couldn't sign in with Google. Please try again.",
+    'auth.imPatient': "I'm a patient",
+    'auth.imDoctor': "I'm a doctor",
+    'auth.patientIntro':
+        'Book appointments, see your prescriptions, and keep everything in one place.',
+    'auth.doctorIntro':
+        'Apply to join the clinic. An admin reviews every request, so your account '
+            'stays inactive until it is approved.',
+    'auth.specializationHint': 'e.g. Psychiatry',
+    'auth.doctorPending':
+        'Account created. Your request to join as a doctor is waiting for admin '
+            'approval — we will let you know as soon as it is reviewed.',
+    'auth.confirmPassword': 'Confirm password',
+    'auth.passwordsDontMatch': "The two passwords don't match.",
+    'auth.doctorNeedsEmail':
+        'Doctor accounts are created with an email address, so the clinic has a '
+            'way to reach you about your application.',
+    'auth.doctorLoginIntro':
+        'Sign in to your clinic account — your schedule, your patients, and '
+            'their prescriptions.',
+    'auth.rolePatientActually':
+        'This account is registered as a patient, so that is where we are '
+            'taking you.',
+    'auth.roleDoctorActually':
+        'This account is registered as a doctor, so that is where we are '
+            'taking you.',
+    'auth.roleAdminActually':
+        'This is an admin account, so that is where we are taking you.',
+    'auth.verifyTitle': 'Verify your email',
+    'auth.verifyHeading': 'One more step',
+    'auth.verifySentTo': 'We have sent a verification link to',
+    'auth.verifyStep1': 'Open that email and tap the link inside it.',
+    'auth.verifyStep2': 'Come back here — the app will let you in by itself.',
+    'auth.verifySpam': "Can't see it? Look in your spam or junk folder.",
+    'auth.verifyDone': "I've done it — check now",
+    'auth.verifyResend': 'Send the email again',
+    'auth.verifyResent': 'Sent. It can take a minute to arrive.',
+    'auth.verifyNotYet':
+        'Not verified yet. Open the link in the email, then try again.',
+    'auth.verifyThanks': 'Email verified. Welcome.',
+    'auth.verifyTooMany':
+        'Too many emails sent just now. Please wait a few minutes.',
+    'auth.verifyFailed': "Couldn't send the email. Please try again.",
+    'auth.verifyWrongEmail': 'Wrong email address, or not your account?',
 
     'splash.checking': 'Getting things ready…',
 
@@ -529,6 +575,50 @@ class Strings {
     'auth.needPassword': 'پاس ورڈ کم از کم چھ حروف کا ہونا چاہیے۔',
     'auth.needPhone': 'یہ فون نمبر درست نہیں لگتا۔',
     'auth.phoneHelp': 'ہم آپ کو چھ ہندسوں کا کوڈ بھیجیں گے۔',
+    'auth.or': 'یا',
+    'auth.continueWithGoogle': 'گوگل سے جاری رکھیں',
+    'auth.googleFailed': 'گوگل سے سائن اِن نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
+    'auth.imPatient': 'میں مریض ہوں',
+    'auth.imDoctor': 'میں ڈاکٹر ہوں',
+    'auth.patientIntro':
+        'اپائنٹمنٹ بُک کریں، اپنے نسخے دیکھیں، اور سب کچھ ایک ہی جگہ رکھیں۔',
+    'auth.doctorIntro':
+        'کلینک میں شامل ہونے کی درخواست دیں۔ ہر درخواست ایڈمن دیکھتا ہے، اس لیے '
+            'منظوری تک آپ کا اکاؤنٹ غیر فعال رہے گا۔',
+    'auth.specializationHint': 'مثلاً نفسیات',
+    'auth.doctorPending':
+        'اکاؤنٹ بن گیا۔ ڈاکٹر کے طور پر شامل ہونے کی آپ کی درخواست ایڈمن کی منظوری '
+            'کی منتظر ہے — جائزے کے بعد ہم آپ کو اطلاع دیں گے۔',
+    'auth.confirmPassword': 'پاس ورڈ دوبارہ لکھیں',
+    'auth.passwordsDontMatch': 'دونوں پاس ورڈ ایک جیسے نہیں ہیں۔',
+    'auth.doctorNeedsEmail':
+        'ڈاکٹر کا اکاؤنٹ ای میل کے ساتھ بنتا ہے، تاکہ کلینک آپ کی درخواست کے بارے '
+            'میں آپ سے رابطہ کر سکے۔',
+    'auth.doctorLoginIntro':
+        'اپنے کلینک اکاؤنٹ میں سائن اِن کریں — آپ کا شیڈول، آپ کے مریض، اور ان '
+            'کے نسخے۔',
+    'auth.rolePatientActually':
+        'یہ اکاؤنٹ مریض کے طور پر رجسٹرڈ ہے، اس لیے ہم آپ کو وہیں لے جا رہے ہیں۔',
+    'auth.roleDoctorActually':
+        'یہ اکاؤنٹ ڈاکٹر کے طور پر رجسٹرڈ ہے، اس لیے ہم آپ کو وہیں لے جا رہے ہیں۔',
+    'auth.roleAdminActually':
+        'یہ ایڈمن اکاؤنٹ ہے، اس لیے ہم آپ کو وہیں لے جا رہے ہیں۔',
+    'auth.verifyTitle': 'ای میل کی تصدیق',
+    'auth.verifyHeading': 'بس ایک قدم اور',
+    'auth.verifySentTo': 'ہم نے تصدیقی لنک بھیج دیا ہے',
+    'auth.verifyStep1': 'وہ ای میل کھول کر اُس میں دیے گئے لنک پر کلک کریں۔',
+    'auth.verifyStep2': 'پھر یہاں واپس آ جائیں — ایپ خود آپ کو اندر لے آئے گی۔',
+    'auth.verifySpam': 'نظر نہ آئے تو اسپَیم یا جنک فولڈر دیکھ لیں۔',
+    'auth.verifyDone': 'کر لیا — اب چیک کریں',
+    'auth.verifyResend': 'ای میل دوبارہ بھیجیں',
+    'auth.verifyResent': 'بھیج دی گئی۔ پہنچنے میں ایک منٹ لگ سکتا ہے۔',
+    'auth.verifyNotYet':
+        'ابھی تصدیق نہیں ہوئی۔ پہلے ای میل میں دیے گئے لنک پر کلک کریں۔',
+    'auth.verifyThanks': 'ای میل کی تصدیق ہو گئی۔ خوش آمدید۔',
+    'auth.verifyTooMany':
+        'ابھی بہت سی ای میلز بھیجی جا چکی ہیں۔ چند منٹ انتظار کر لیں۔',
+    'auth.verifyFailed': 'ای میل نہیں بھیجی جا سکی۔ دوبارہ کوشش کریں۔',
+    'auth.verifyWrongEmail': 'ای میل غلط ہے، یا یہ آپ کا اکاؤنٹ نہیں؟',
 
     'splash.checking': 'تیاری ہو رہی ہے…',
 

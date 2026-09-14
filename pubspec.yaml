@@ -33,6 +33,15 @@ dependencies:
   cloud_firestore: ^5.4.4
   firebase_messaging: ^15.1.3
 
+  # "Continue with Google", the same way the website offers it.
+  #
+  # Pinned to the 6.x line deliberately. Version 7 rewrote the whole API
+  # (`GoogleSignIn.instance`, `authenticate()`, a different way of getting the
+  # ID token), and the 6.x flow below is the one every Firebase example and
+  # every answer on the internet is written against. When there is time to test
+  # it properly on a real phone, moving to 7 is a small, contained change.
+  google_sign_in: ^6.2.1
+
   http: ^1.2.2
   provider: ^6.1.2
   shared_preferences: ^2.3.2
