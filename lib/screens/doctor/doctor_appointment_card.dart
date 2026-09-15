@@ -36,45 +36,66 @@ class DoctorAppointmentRow extends StatelessWidget {
               border: Border.all(color: Palette.line),
               borderRadius: BorderRadius.circular(Palette.radiusCard),
             ),
-            child: Row(
+            // Two lines, not three columns.
+            //
+            // The old layout put the time, the details and the status pill in
+            // one Row. On a phone that leaves the middle column whatever the
+            // pill does not want — and a long status took so much that the
+            // service name wrapped a character at a time down a strip four
+            // letters wide.
+            //
+            // Now the pill shares the *title* line, where it is beside a short
+            // patient name and has a natural stopping point, and the service
+            // and mode get the full width of the card underneath.
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 66,
-                  child: Text(
-                    a.hasSchedule ? Fmt.time(a.time) : '—',
-                    // A clock time is Latin numerals in both languages, and
-                    // must not be mirrored when the app is in Urdu.
-                    textDirection: TextDirection.ltr,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: Palette.indigoDeep,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 66,
+                      child: Text(
+                        a.hasSchedule ? Fmt.time(a.time) : '—',
+                        // A clock time is Latin numerals in both languages,
+                        // and must not be mirrored when the app is in Urdu.
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Palette.indigoDeep,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                    Expanded(
+                      child: Text(
                         a.patientName.isEmpty ? a.service : a.patientName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Palette.ink,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${a.service} · ${_modeLabel(a.mode)}',
-                        style: const TextStyle(fontSize: 12, color: Palette.inkSoft),
-                      ),
-                    ],
+                    ),
+                    const SizedBox(width: 8),
+                    StatusPill(
+                      status: a.status,
+                      label: l10n.statusFor(a.status, staff: true),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Padding(
+                  // Lined up under the patient name, so the eye follows one
+                  // edge down the list instead of two.
+                  padding: const EdgeInsetsDirectional.only(start: 66),
+                  child: Text(
+                    '${a.service} · ${_modeLabel(a.mode)}',
+                    style: const TextStyle(fontSize: 12, height: 1.4, color: Palette.inkSoft),
                   ),
                 ),
-                const SizedBox(width: 8),
-                StatusPill(status: a.status, label: l10n.status(a.status)),
               ],
             ),
           ),

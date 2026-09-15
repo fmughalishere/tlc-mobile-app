@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -231,15 +230,35 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pair = _colors[status] ?? const [Palette.mist, Palette.inkSoft];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: pair[0],
-        borderRadius: BorderRadius.circular(Palette.radiusPill),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: pair[1]),
+    return ConstrainedBox(
+      // A pill is a label, not a paragraph.
+      //
+      // Unconstrained in a Row it takes whatever its text asks for, and a long
+      // status — "Waiting for your payment" — left the appointment beside it a
+      // sliver to wrap into, one or two characters per line. The card looked
+      // broken, and on a narrow phone every status long enough to matter did
+      // it. Capped here rather than at each call site, because every call site
+      // has the same problem and only one of them had been noticed.
+      constraints: const BoxConstraints(maxWidth: 132),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: pair[0],
+          borderRadius: BorderRadius.circular(Palette.radiusPill),
+        ),
+        child: Text(
+          label,
+          // Two lines rather than an ellipsis: "Waiting for your…" tells a
+          // doctor scanning a list nothing, and these labels are short enough
+          // that two lines always finishes them.
+          maxLines: 2,
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.25,
+            fontWeight: FontWeight.w600,
+            color: pair[1],
+          ),
+        ),
       ),
     );
   }

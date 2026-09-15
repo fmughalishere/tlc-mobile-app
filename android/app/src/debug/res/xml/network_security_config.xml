@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only. This file lives in src/debug, so it is not compiled into
+  a release APK and changes nothing about what ships.
+
+  Why it has to exist: since Android 9 the platform blocks plain http by
+  default, for the app's own requests and for anything the WebView loads. A
+  development server is plain http, so without this every call from the
+  emulator or a test phone fails with CLEARTEXT_NOT_PERMITTED and the payment
+  WebView shows a blank page with no explanation.
+
+  Cleartext is allowed for everything here rather than for a list of
+  addresses, and that is deliberate. Android matches this list by exact host
+  name: "192.168.1.0" does NOT cover 192.168.1.5, and includeSubdomains does
+  not mean subnet. A list that looks right and silently matches nothing is
+  worse than no list, because the failure looks identical to a broken server.
+  A developer's laptop moves between networks and IPs; a debug build has to
+  follow it.
+
+  The release build keeps Android's default, which refuses cleartext outright.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Lets a debug build be inspected through a local HTTPS proxy
+                 (Charles, mitmproxy) when a request needs to be watched on
+                 the wire. Release builds trust system roots only. -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

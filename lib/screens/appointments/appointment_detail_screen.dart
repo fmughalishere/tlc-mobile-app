@@ -7,6 +7,7 @@ import '../../data/repository.dart';
 import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../booking/pay_appointment_sheet.dart';
 import 'rate_visit_screen.dart';
 
 /// One appointment, everything about it, and the two things a patient can do
@@ -73,10 +74,57 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     }
   }
 
+  /// Pays for a follow-up the doctor already booked.
+  ///
+  /// The appointment is holding a slot and waiting on the money, and until now
+  /// the app had no way to send it — a patient could see "waiting for your
+  /// payment" and do nothing about it without opening the website. The sheet
+  /// offers whichever gateways the server says are switched on, which is the
+  /// same list the booking screen uses.
+  ///
+  /// Nothing here decides whether the payment succeeded. The server does that
+  /// when the gateway's callback reaches it; this only reads the answer.
+  Future<void> _payNow() async {
+    final l10n = context.read<LocaleController>();
+    final result = await payForAppointment(context, _appointment);
+    if (!mounted || result == null) return;
+
+    if (result.paid) {
+      showToast(context, l10n.t('book.paid'));
+      // Popped rather than patched in place: the appointment's status,
+      // payment state and paid-at all changed on the server at once, and the
+      // list behind this screen reloads them together.
+      Navigator.of(context).pop();
+      return;
+    }
+
+    if (result.cancelled) {
+      showToast(context, l10n.t('book.payCancelled'), error: true);
+      return;
+    }
+
+    // Undecided — the server could not tell whether the money arrived. The
+    // slot is still held and a second attempt could charge twice, so the
+    // message says call the clinic rather than try again.
+    showToast(
+      context,
+      result.message?.trim().isNotEmpty == true
+          ? result.message!
+          : l10n.t(result.attention ? 'book.payAttention' : 'book.payFailed'),
+      error: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final a = _appointment;
+
+    // Money still owed on a time that is being held. `paymentStatus` is
+    // checked as well as the status, because a callback can mark an
+    // appointment paid a moment before this screen's copy catches up, and
+    // offering to pay again is the one mistake worth guarding twice against.
+    final canPay = a.awaitingPayment && a.paymentStatus != 'paid';
 
     // A video room only exists once the session has been started at the other
     // end. Showing the button before that gives the patient a link to nothing.
@@ -250,6 +298,18 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           ],
 
           const SizedBox(height: 30),
+
+          if (canPay) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _busy ? null : _payNow,
+                icon: const Icon(Icons.lock_outline_rounded, size: 19),
+                label: Text(l10n.t('pay.confirmAndPay')),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           if (canJoin)
             SizedBox(

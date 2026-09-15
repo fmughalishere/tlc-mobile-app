@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/palette.dart';
+import 'core/push.dart';
 import 'core/theme.dart';
 import 'i18n/strings.dart';
 import 'screens/boot_gate.dart';
@@ -22,6 +23,7 @@ class TlcApp extends StatelessWidget {
     return MaterialApp(
       title: 'TLC Med Clinics',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: scaffoldMessengerKey,
 
       // Two full themes rather than one theme with a font override. Nastaliq
       // needs more line height than Latin at every text size, so the

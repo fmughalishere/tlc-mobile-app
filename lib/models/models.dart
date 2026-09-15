@@ -396,6 +396,72 @@ class AppNotification {
 
 // ─────────────────────────────────────────────────────────────── Profile ────
 
+/// One way to pay, as the website reports it.
+///
+/// The app deliberately knows nothing about gateways. Which ones the clinic
+/// has been approved for — JazzCash today, cards next month — lives in the
+/// server's environment, and the list arrives as plain metadata from
+/// `/api/payments/methods`. Nothing secret crosses: a method either appears or
+/// it does not. Adding a fourth gateway to the clinic requires no change here
+/// and no new version of the app in anybody's phone.
+class PaymentMethod {
+  const PaymentMethod({
+    required this.id,
+    required this.label,
+    required this.blurb,
+    required this.via,
+  });
+
+  final String id;
+  final String label;
+  final String blurb;
+
+  /// "redirect" for the gateways the website drives itself, "stripe" for the
+  /// one that keeps its own route. The app only handles "redirect" — Stripe
+  /// does not pay out to a Pakistani merchant, so it cannot take real money
+  /// for this clinic and there is no reason to carry it in a phone app.
+  final String via;
+
+  bool get usable => via == 'redirect';
+
+  factory PaymentMethod.fromJson(Map<String, dynamic> json) => PaymentMethod(
+        id: _str(json['id']),
+        label: _str(json['label']),
+        blurb: _str(json['blurb']),
+        via: _strOrNull(json['via']) ?? 'redirect',
+      );
+}
+
+/// What the app must do to hand the patient over to the gateway.
+///
+/// Two shapes, because the gateways genuinely differ: Safepay answers with a
+/// URL, while JazzCash and EasyPaisa only document an HTML form post. The
+/// website already normalises both into this one type, so the payment screen
+/// can take either without knowing which gateway it is talking to.
+class PaymentHandover {
+  const PaymentHandover({required this.kind, this.url, this.action, this.fields = const {}});
+
+  final String kind; // 'url' | 'form'
+  final String? url;
+  final String? action;
+  final Map<String, String> fields;
+
+  factory PaymentHandover.fromJson(Map<String, dynamic> json) {
+    final rawFields = json['fields'];
+    return PaymentHandover(
+      kind: _strOrNull(json['kind']) ?? 'url',
+      url: _strOrNull(json['url']),
+      action: _strOrNull(json['action']),
+      fields: rawFields is Map
+          ? {
+              for (final entry in rawFields.entries)
+                '${entry.key}': entry.value == null ? '' : '${entry.value}',
+            }
+          : const {},
+    );
+  }
+}
+
 class Profile {
   const Profile({
     required this.uid,

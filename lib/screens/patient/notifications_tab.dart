@@ -27,6 +27,11 @@ class NotificationsTab extends StatelessWidget {
       case 'appointment-reminder':
       case 'appointment-starting-soon':
         return Icons.alarm_rounded;
+      // Its own icon, not the alarm. "Starting soon" is a warning; this one
+      // says the door is already open, and the two should not look alike in a
+      // list somebody is scanning.
+      case 'session-started':
+        return Icons.play_circle_outline_rounded;
       case 'appointment-awaiting-payment':
       case 'appointment-payment-expired':
         return Icons.payments_outlined;

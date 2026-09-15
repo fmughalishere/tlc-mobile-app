@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'google_auth.dart';
+import 'push.dart';
 
 /// Who is signed in, and what they are allowed to see.
 ///
@@ -141,6 +142,16 @@ class Session extends ChangeNotifier {
   /// caller so it can be shown, rather than leaving the person staring at an
   /// unchanged screen.
   Future<void> signOut() async {
+    // First, while the account is still signed in.
+    //
+    // Unregistering this phone needs a request the server will accept, and the
+    // moment Firebase clears the user there is no token to send. Do it after,
+    // and the phone keeps receiving somebody else's appointment notifications
+    // on their lock screen until the token happens to expire — on a phone that
+    // has been lent, sold or handed to a relative, that is somebody's medical
+    // information arriving at a stranger's hand.
+    await pushService.stop();
+
     await _profileSub?.cancel();
     _profileSub = null;
 

@@ -41,6 +41,81 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- ── Permissions the video consultation needs ──────────────────────
+
+	     iOS refuses camera and microphone access outright unless the app says,
+	     in its own words, what it wants them for — and it does not fail with an
+	     error. The prompt simply never appears and the call sits there with no
+	     picture, which looks like a broken app rather than a missing key. App
+	     Review rejects a build without them as well.
+
+	     These are shown to the patient verbatim, so they are written for a
+	     patient rather than for a developer. -->
+	<key>NSCameraUsageDescription</key>
+	<string>TLC Med Clinics needs your camera so your doctor can see you during a video consultation.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TLC Med Clinics needs your microphone so your doctor can hear you during a consultation.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TLC Med Clinics needs access to your photos so you can attach a prescription or report to your appointment.</string>
+
+	<!-- ── Talking to a development server ───────────────────────────────
+
+	     Since iOS 9, App Transport Security blocks plain http. The clinic's own
+	     site is https, so the shipped app needs no exception at all — but a
+	     debug build pointed at a laptop (API_BASE_URL set to an http address)
+	     gets its requests refused with no useful message.
+
+	     Scoped to local addresses only. `NSAllowsArbitraryLoads` would open the
+	     app to unencrypted traffic with anyone, anywhere, and Apple asks for a
+	     written justification for it at review — for something only a developer
+	     on their own machine ever needs. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- ── Google Sign-In ────────────────────────────────────────────────
+
+	     "Continue with Google" hands the patient to Safari and Google hands
+	     them back through a URL scheme that belongs to this app. Without the
+	     scheme registered, the sign-in page opens, the patient picks their
+	     account, and nothing comes back — the app never learns they signed in.
+
+	     The value is the REVERSED_CLIENT_ID out of GoogleService-Info.plist,
+	     which looks like com.googleusercontent.apps.1234567890-abcdefg. That
+	     file is downloaded from the Firebase console for the iOS app whose
+	     bundle id is com.tlcmedclinics.tlcMedClinics — the console lists three
+	     iOS apps and only that one matches this project.
+
+	     Both keys below are commented out on purpose. A placeholder scheme is
+	     worse than a missing one: it registers this app for a callback that
+	     will never arrive and the failure is silent. Paste the real value in,
+	     uncomment both blocks, and Google sign-in works. -->
+	<!--
+	<key>GIDClientID</key>
+	<string>PASTE CLIENT_ID FROM GoogleService-Info.plist</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>PASTE REVERSED_CLIENT_ID FROM GoogleService-Info.plist</string>
+			</array>
+		</dict>
+	</array>
+	-->
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

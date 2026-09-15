@@ -38,6 +38,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- The channel appointment notifications arrive on.
+             Since Android 8 every notification belongs to a channel, and one
+             that names a channel which does not exist is quietly dropped into
+             "Miscellaneous" — where it is grouped with anything else and can
+             be silenced without the patient realising what they silenced.
+             Declaring it here makes the Firebase SDK create it on first run,
+             so "Appointments" appears in the phone's own settings under this
+             app and can be kept on while everything else is turned off. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="tlc_appointments" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

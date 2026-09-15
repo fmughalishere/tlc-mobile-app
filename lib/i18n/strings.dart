@@ -180,6 +180,33 @@ class Strings {
     'book.submit': 'Request this appointment',
     'book.booked': 'Booked. The clinic will call you shortly.',
     'book.requested': 'Request sent. The clinic will call you shortly.',
+    'book.howPay': 'How would you like to pay?',
+    'book.payNow': 'Pay now',
+    'book.payNowSub': 'Pay the advance now and your time is confirmed straight away.',
+    'book.payAtClinic': 'Pay when the clinic calls',
+    'book.payAtClinicSub':
+        'We hold your time and ring you to confirm. Nothing is charged now.',
+    'book.payable': 'To pay now',
+    'book.paid': 'Paid. Your appointment is confirmed.',
+    'book.payFailed': 'That payment did not go through. Your time has been released.',
+    'book.payCancelled': 'Payment cancelled. Nothing has been charged.',
+    'book.payAttention':
+        'We could not confirm that payment yet. Your time is still held — please call the clinic before paying again.',
+    'pay.secureNote': 'This page belongs to the payment provider. Your card never reaches the clinic or this app.',
+    'pay.pageFailed': "That page couldn't load. Check your connection and try again.",
+    'pay.leaveTitle': 'Leave without paying?',
+    'pay.leaveBody':
+        'If you have already entered your card, wait a moment for it to finish. '
+            'Leaving now releases the time you picked.',
+    'pay.keepPaying': 'Stay here',
+    'pay.leave': 'Leave',
+    'pay.chooseMethod': 'How would you like to pay?',
+    'pay.confirmAndPay': 'Confirm and pay',
+    'pay.dueNow': 'Due now',
+    'pay.noMethods':
+        'Online payment isn\u2019t open yet. Please call the clinic to confirm this time.',
+    'pay.holdNote':
+        'This time is held for you until you pay. Payment is completed on the provider\u2019s own secure page.',
 
     'appt.title': 'Appointments',
     'appt.upcoming': 'Upcoming',
@@ -188,6 +215,7 @@ class Strings {
     'appt.emptySub': 'Book one and it will appear here.',
     'appt.status.pending': 'Waiting for the clinic to call',
     'appt.status.awaiting-payment': 'Waiting for your payment',
+    'appt.statusStaff.awaiting-payment': 'Awaiting payment',
     'appt.status.confirmed': 'Confirmed',
     'appt.status.completed': 'Completed',
     'appt.status.cancelled': 'Cancelled',
@@ -674,6 +702,33 @@ class Strings {
     'book.submit': 'اپائنٹمنٹ کی درخواست بھیجیں',
     'book.booked': 'بُک ہو گئی۔ کلینک جلد آپ کو کال کرے گا۔',
     'book.requested': 'درخواست بھیج دی گئی۔ کلینک جلد آپ کو کال کرے گا۔',
+    'book.howPay': 'آپ ادائیگی کیسے کرنا چاہیں گی؟',
+    'book.payNow': 'ابھی ادائیگی کریں',
+    'book.payNowSub': 'ایڈوانس ابھی ادا کریں اور آپ کا وقت فوراً پکا ہو جائے گا۔',
+    'book.payAtClinic': 'کلینک کی کال پر ادائیگی',
+    'book.payAtClinicSub':
+        'ہم آپ کا وقت روک لیں گے اور تصدیق کے لیے کال کریں گے۔ ابھی کچھ نہیں کٹے گا۔',
+    'book.payable': 'ابھی قابلِ ادائیگی',
+    'book.paid': 'ادائیگی ہو گئی۔ آپ کی اپائنٹمنٹ پکی ہے۔',
+    'book.payFailed': 'ادائیگی مکمل نہیں ہوئی۔ آپ کا وقت واپس کھول دیا گیا ہے۔',
+    'book.payCancelled': 'ادائیگی منسوخ کر دی گئی۔ کچھ بھی نہیں کاٹا گیا۔',
+    'book.payAttention':
+        'ہم ابھی آپ کی ادائیگی کی تصدیق نہیں کر سکے۔ آپ کا وقت اب بھی محفوظ ہے — دوبارہ ادائیگی سے پہلے کلینک کو کال کریں۔',
+    'pay.secureNote': 'یہ صفحہ ادائیگی کے ادارے کا ہے۔ آپ کا کارڈ نہ کلینک تک پہنچتا ہے نہ اس ایپ تک۔',
+    'pay.pageFailed': 'یہ صفحہ نہیں کھل سکا۔ اپنا انٹرنیٹ دیکھ کر دوبارہ کوشش کریں۔',
+    'pay.leaveTitle': 'ادائیگی کے بغیر واپس جائیں؟',
+    'pay.leaveBody':
+        'اگر آپ کارڈ کی تفصیل دے چکی ہیں تو ذرا ٹھہر جائیں، عمل مکمل ہو جائے۔ '
+            'ابھی واپس جانے پر منتخب کیا ہوا وقت چھوٹ جائے گا۔',
+    'pay.keepPaying': 'یہیں رہیں',
+    'pay.leave': 'واپس جائیں',
+    'pay.chooseMethod': 'آپ کس طرح ادائیگی کرنا چاہیں گے؟',
+    'pay.confirmAndPay': 'تصدیق کریں اور ادائیگی کریں',
+    'pay.dueNow': 'ابھی قابلِ ادائیگی',
+    'pay.noMethods':
+        'آن لائن ادائیگی ابھی دستیاب نہیں۔ اس وقت کی تصدیق کے لیے کلینک کو کال کریں۔',
+    'pay.holdNote':
+        'یہ وقت ادائیگی تک آپ کے لیے محفوظ ہے۔ ادائیگی ادارے کے اپنے محفوظ صفحے پر مکمل ہوتی ہے۔',
 
     'appt.title': 'اپائنٹمنٹس',
     'appt.upcoming': 'آنے والی',
@@ -682,6 +737,7 @@ class Strings {
     'appt.emptySub': 'بُک کریں تو یہاں نظر آئے گی۔',
     'appt.status.pending': 'کلینک کی کال کا انتظار',
     'appt.status.awaiting-payment': 'آپ کی ادائیگی کا انتظار',
+    'appt.statusStaff.awaiting-payment': 'ادائیگی کا انتظار',
     'appt.status.confirmed': 'تصدیق شدہ',
     'appt.status.completed': 'مکمل',
     'appt.status.cancelled': 'منسوخ',
@@ -1074,8 +1130,24 @@ class LocaleController extends ChangeNotifier {
   /// The wording for an appointment status, or the raw status when the server
   /// invents a new one before the app has learned about it.
   String status(String raw) {
-    final key = 'appt.status.$raw';
+    final key = 'appt.status.\$raw';
     final value = t(key);
     return value == key ? raw : value;
+  }
+
+  /// The same status, worded for whoever is looking at it.
+  ///
+  /// "Waiting for your payment" is written to a patient. On a doctor's or an
+  /// admin's screen it is simply wrong — it is not their payment — and on a
+  /// busy schedule it also reads as something they are supposed to do. Where a
+  /// staff wording exists it wins; everything else falls through unchanged, so
+  /// adding one is a single key and no code.
+  String statusFor(String raw, {required bool staff}) {
+    if (staff) {
+      final staffKey = 'appt.statusStaff.\$raw';
+      final staffValue = t(staffKey);
+      if (staffValue != staffKey) return staffValue;
+    }
+    return status(raw);
   }
 }

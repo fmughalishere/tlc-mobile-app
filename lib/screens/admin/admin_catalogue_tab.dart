@@ -61,10 +61,12 @@ class _AdminCatalogueTabState extends State<AdminCatalogueTab> {
     _couponsLoading = true;
     try {
       final list = await _repo.coupons();
-      if (mounted) setState(() {
-        _coupons = list;
-        _couponsLoaded = true;
-      });
+      if (mounted) {
+        setState(() {
+          _coupons = list;
+          _couponsLoaded = true;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _couponsLoaded = true);
@@ -80,10 +82,12 @@ class _AdminCatalogueTabState extends State<AdminCatalogueTab> {
     _postsLoading = true;
     try {
       final list = await _repo.blogs(includeDrafts: true);
-      if (mounted) setState(() {
-        _posts = list;
-        _postsLoaded = true;
-      });
+      if (mounted) {
+        setState(() {
+          _posts = list;
+          _postsLoaded = true;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _postsLoaded = true);

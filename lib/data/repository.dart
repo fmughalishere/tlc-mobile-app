@@ -145,6 +145,94 @@ class Repository {
     );
   }
 
+  // ── Paying ────────────────────────────────────────────────────────────────
+  //
+  // The app never holds a merchant key and never talks to a gateway directly.
+  // It asks the clinic's own server to start a payment, gets back the one
+  // thing it needs — where to send the patient — and opens that. Every secret
+  // stays on the server, which matters more here than anywhere else in the
+  // app: an APK is a file anybody can download and unzip, so a merchant secret
+  // compiled into one is a merchant secret published.
+
+  /// Tells the server which phone to send notifications to.
+  ///
+  /// The uid is never sent — the server takes it from the ID token on the
+  /// request. A body that says who you are is a body that can lie, and the
+  /// thing being claimed here is "deliver this person's medical appointments
+  /// to my device".
+  Future<void> registerPushToken(String token, {String? platform}) async {
+    await _api.post('/api/push/token', {
+      'token': token,
+      if (platform != null) 'platform': platform,
+    });
+  }
+
+  /// Stops notifications reaching this phone. Called on sign-out, while the
+  /// user is still signed in — the request needs a token the server accepts.
+  Future<void> unregisterPushToken(String token) async {
+    await _api.delete('/api/push/token', {'token': token});
+  }
+
+  /// Which ways of paying the clinic can actually take today.
+  ///
+  /// A failure here is not fatal and must not be: the booking screen falls
+  /// back to the unpaid path, where the clinic rings to confirm. A patient who
+  /// cannot see a card button still gets an appointment.
+  Future<List<PaymentMethod>> paymentMethods() async {
+    final rows = _list(await _api.get('/api/payments/methods'), 'methods');
+    return rows.map(PaymentMethod.fromJson).where((m) => m.usable).toList();
+  }
+
+  /// Starts a payment for a *new* booking and returns where to send the
+  /// patient.
+  ///
+  /// The server holds the slot and writes down the amount before answering, so
+  /// nothing that happens in the WebView afterwards can change what is
+  /// charged or let two people pay for the same 3pm. If the patient abandons
+  /// the gateway, the callback releases the slot again.
+  Future<PaymentHandover> startBookingPayment({
+    required String gateway,
+    required String service,
+    required Slot slot,
+    required String patientName,
+    required num amount,
+    String? patientPhone,
+    String? notes,
+    String patientType = 'new',
+  }) async {
+    final body = _map(await _api.post('/api/payments/start', {
+      'gateway': gateway,
+      'service': service,
+      'slotId': slot.id,
+      // The server reads the authoritative date and time off the slot document
+      // inside its transaction; these are sent because the route requires them
+      // present, not because it trusts them.
+      'date': slot.date,
+      'time': slot.time,
+      'mode': slot.isOnline ? 'video' : 'in-person',
+      'amount': amount,
+      'patientName': patientName,
+      if (patientPhone != null && patientPhone.isNotEmpty) 'patientPhone': patientPhone,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'patientType': patientType,
+    }));
+    return PaymentHandover.fromJson(body);
+  }
+
+  /// The same, for a follow-up the doctor already scheduled and left unpaid.
+  /// No amount is sent: the server reads it off the appointment, so a browser
+  /// claiming a different figure is ignored.
+  Future<PaymentHandover> startAppointmentPayment({
+    required String gateway,
+    required String appointmentId,
+  }) async {
+    final body = _map(await _api.post('/api/payments/start', {
+      'gateway': gateway,
+      'appointmentId': appointmentId,
+    }));
+    return PaymentHandover.fromJson(body);
+  }
+
   /// When no doctor covering the service has an open slot. The clinic assigns
   /// someone and schedules it, so there is no slot to hold and no date to send.
   Future<Appointment> requestAppointment({

@@ -46,7 +46,25 @@ class ApiException implements Exception {
 class ApiClient {
   ApiClient({required this.baseUrl, http.Client? client})
       : _client = client ?? _shared,
-        _ownsClient = client != null;
+        _ownsClient = client != null {
+    _announceBaseUrl(baseUrl);
+  }
+
+  /// Says once, in the debug console, which server this build is talking to.
+  ///
+  /// Worth the three lines. Every screen in this app reads its data from the
+  /// website's API, so a build left on the default URL shows empty lists on a
+  /// laptop whose own server is full of data — and an empty list looks exactly
+  /// like a broken database, a missing google-services.json, or a hundred
+  /// other things it is not. One line at startup turns an afternoon of
+  /// guessing into a glance.
+  static bool _announced = false;
+  static void _announceBaseUrl(String baseUrl) {
+    if (!kDebugMode || _announced) return;
+    _announced = true;
+    debugPrint('[api] talking to $baseUrl  '
+        '(change it with --dart-define=API_BASE_URL=...)');
+  }
 
   /// One HTTP client for the whole app.
   ///

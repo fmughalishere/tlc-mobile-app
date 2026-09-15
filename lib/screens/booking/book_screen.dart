@@ -10,6 +10,7 @@ import '../../data/repository.dart';
 import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import 'payment_screen.dart';
 
 /// Booking, in four steps.
 ///
@@ -22,12 +23,24 @@ import '../../widgets/common.dart';
 /// with a message saying so, which is a far better outcome than two patients
 /// arriving for the same appointment.
 ///
-/// **The money.** This flow books with `bookingType: "call-back"` — the unpaid
-/// path, where the clinic phones to confirm and takes payment. That is a
-/// deliberate choice for the first version: taking a card payment needs the
-/// gateway's own hosted flow, and a booking that reaches the clinic and gets a
-/// phone call is a real booking, not a placeholder. The price is still shown
-/// at every step so nobody is surprised by it later.
+/// **The money.** Two paths, and the patient chooses on the last step.
+///
+/// *Pay now* asks the clinic's server to start a payment, then opens the
+/// gateway's own hosted page in a WebView. The appointment is not created
+/// here at all — the server creates it when the gateway's callback arrives
+/// carrying a signature it can verify. So this screen cannot produce a paid
+/// appointment by getting something wrong, and a patient who closes the app
+/// mid-payment still ends up with the right outcome: the server either
+/// finalises the booking or releases the slot.
+///
+/// *Pay when the clinic calls* is the original unpaid path, and it stays.
+/// Many of this clinic's patients have no card, and an app that quietly made
+/// online payment the only way in would lock them out of the service rather
+/// than modernise it. It is also the fallback when no gateway is switched on:
+/// `/api/payments/methods` answering with an empty list is not an error, it
+/// just means today the clinic takes payment by phone.
+///
+/// The price is shown at every step either way, so nobody is surprised by it.
 class BookScreen extends StatefulWidget {
   const BookScreen({super.key, this.preselected});
 
@@ -56,6 +69,17 @@ class _BookScreenState extends State<BookScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// The ways to pay the clinic can take today, straight from the server.
+  /// Empty is a normal state, not a broken one — see the note above.
+  List<PaymentMethod> _methods = const [];
+  String? _gateway;
+
+  /// True when the patient wants to pay now. Set to true the moment a usable
+  /// method arrives, because a patient who can pay usually wants the time
+  /// confirmed there and then rather than waiting for a phone call — and the
+  /// other option is one tap away, clearly labelled, on the same screen.
+  bool _payNow = false;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +93,27 @@ class _BookScreenState extends State<BookScreen> {
     _name.text = session.name;
     final profilePhone = session.profile?['phone'];
     if (profilePhone is String) _phone.text = Fmt.phone(profilePhone);
+
+    _loadMethods();
+  }
+
+  /// Asked for once, as the screen opens, so the answer is already here by the
+  /// time the patient reaches the last step. Deliberately not awaited and
+  /// deliberately silent on failure: this list decides whether an extra option
+  /// is offered, and a clinic that cannot be asked simply offers the phone
+  /// call — which is exactly what it did before any of this existed.
+  Future<void> _loadMethods() async {
+    try {
+      final methods = await _repo.paymentMethods();
+      if (!mounted || methods.isEmpty) return;
+      setState(() {
+        _methods = methods;
+        _gateway = methods.first.id;
+        _payNow = true;
+      });
+    } catch (_) {
+      // Nothing to say and nothing to retry. See above.
+    }
   }
 
   @override
@@ -97,6 +142,101 @@ class _BookScreenState extends State<BookScreen> {
       // Stepping back past the slot list invalidates the chosen slot — a slot
       // picked for "online" must not survive a switch to "at the clinic".
       if (_step < 3) _slot = null;
+    });
+  }
+
+  /// True when this tap should open a gateway rather than book unpaid.
+  ///
+  /// All four conditions, because each one on its own has been the cause of a
+  /// payment screen opening for nothing: a request with no slot to pay for, a
+  /// free service, a clinic with no gateway switched on, and the patient
+  /// having chosen the phone call.
+  bool get _paying =>
+      _payNow &&
+      !_requesting &&
+      _gateway != null &&
+      _methods.isNotEmpty &&
+      (_service?.payableNow ?? 0) > 0;
+
+  /// Hands the patient to the gateway and deals with whichever of the three
+  /// things happened.
+  ///
+  /// Note what is *not* here: no appointment is created, no payment status is
+  /// written, and nothing the WebView said is believed. The server made the
+  /// decision when the gateway's signed callback reached it. All this does is
+  /// read the outcome and then refresh from the server anyway — which is also
+  /// what covers the case of a patient who paid and killed the app before the
+  /// result page loaded.
+  Future<void> _payFor(Service service, Slot slot, String name, String phone) async {
+    final l10n = context.read<LocaleController>();
+    final data = context.read<AppData>();
+    final method = _methods.firstWhere(
+      (m) => m.id == _gateway,
+      orElse: () => _methods.first,
+    );
+
+    final handover = await _repo.startBookingPayment(
+      gateway: method.id,
+      service: service.name,
+      slot: slot,
+      patientName: name,
+      amount: service.payableNow,
+      patientPhone: phone,
+      notes: _notes.text.trim(),
+    );
+
+    if (!mounted) return;
+    final result = await Navigator.of(context).push<PaymentResult>(
+      MaterialPageRoute<PaymentResult>(
+        builder: (_) => PaymentScreen(
+          handover: handover,
+          methodLabel: method.label,
+          amountPkr: service.payableNow,
+        ),
+      ),
+    );
+
+    // Always, and before anything is decided on screen. Whether they paid,
+    // cancelled or the page fell over, the truth is now on the server.
+    await data.refreshAppointments();
+    if (!mounted) return;
+
+    if (result?.paid == true) {
+      Navigator.of(context).pop();
+      showToast(context, l10n.t('book.paid'));
+      return;
+    }
+
+    if (result == null || result.cancelled) {
+      // Backed out. They are still on the confirm step with everything they
+      // typed intact, which is the whole reason this does not pop.
+      showToast(context, l10n.t('book.payCancelled'), error: true);
+      return;
+    }
+
+    // Undecided: the server could not tell whether the money arrived. Do not
+    // clear the slot and do not invite another attempt — the slot is still
+    // held, and a second payment for a charge that may already have gone
+    // through is the one mistake that costs a patient real money. They are
+    // kept where they are, told what happened, and pointed at the phone.
+    if (result.attention) {
+      setState(() {
+        _error = result.message?.trim().isNotEmpty == true
+            ? result.message
+            : l10n.t('book.payAttention');
+      });
+      return;
+    }
+
+    // Refused. The slot has been released by the callback, so sending them
+    // back to a fresh list is the only honest next step — the time they picked
+    // may already be gone.
+    setState(() {
+      _error = result.message?.trim().isNotEmpty == true
+          ? result.message
+          : l10n.t('book.payFailed');
+      _slot = null;
+      _step = 2;
     });
   }
 
@@ -139,6 +279,14 @@ class _BookScreenState extends State<BookScreen> {
       } else {
         final slot = _slot;
         if (slot == null) return;
+
+        if (_paying) {
+          // Everything from here is the server's and the gateway's. This
+          // returns when the patient comes back, whatever they did.
+          await _payFor(service, slot, name, phone);
+          return;
+        }
+
         await _repo.book(
           service: service.name,
           slotId: slot.id,
@@ -283,6 +431,14 @@ class _BookScreenState extends State<BookScreen> {
           submitting: _submitting,
           error: _error,
           onSubmit: _submit,
+          methods: _methods,
+          payNow: _payNow,
+          gateway: _gateway,
+          onPayNowChanged: (value) => setState(() {
+            _payNow = value;
+            _error = null;
+          }),
+          onGatewayChanged: (id) => setState(() => _gateway = id),
         );
     }
   }
@@ -554,6 +710,11 @@ class _ConfirmStep extends StatelessWidget {
     required this.submitting,
     required this.error,
     required this.onSubmit,
+    required this.methods,
+    required this.payNow,
+    required this.gateway,
+    required this.onPayNowChanged,
+    required this.onGatewayChanged,
   });
 
   final Service service;
@@ -566,11 +727,21 @@ class _ConfirmStep extends StatelessWidget {
   final bool submitting;
   final String? error;
   final VoidCallback onSubmit;
+  final List<PaymentMethod> methods;
+  final bool payNow;
+  final String? gateway;
+  final void Function(bool) onPayNowChanged;
+  final void Function(String) onGatewayChanged;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final urdu = context.isUrdu;
+
+    // A paid booking needs all three: a time to attach the money to, a price,
+    // and somewhere for the money to go.
+    final canPay = slot != null && service.payableNow > 0 && methods.isNotEmpty;
+    final paying = canPay && payNow;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
@@ -662,27 +833,58 @@ class _ConfirmStep extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 18),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDF3E2),
-            borderRadius: BorderRadius.circular(Palette.radiusSm),
+        const SizedBox(height: 22),
+        if (canPay) ...[
+          SectionHeader(title: l10n.t('book.howPay')),
+          _PayChoice(
+            selected: payNow,
+            title: l10n.t('book.payNow'),
+            subtitle: l10n.t('book.payNowSub'),
+            icon: Icons.lock_outline_rounded,
+            trailing: Fmt.money(service.payableNow),
+            onTap: () => onPayNowChanged(true),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.info_outline_rounded, size: 18, color: Palette.warning),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  l10n.t('book.payLater'),
-                  style: const TextStyle(fontSize: 12.5, color: Palette.warning, height: 1.5),
+          if (payNow) ...[
+            const SizedBox(height: 2),
+            for (final method in methods)
+              Padding(
+                padding: const EdgeInsets.only(left: 14, bottom: 8),
+                child: _MethodRow(
+                  method: method,
+                  selected: method.id == gateway,
+                  onTap: () => onGatewayChanged(method.id),
                 ),
               ),
-            ],
+          ],
+          const SizedBox(height: 8),
+          _PayChoice(
+            selected: !payNow,
+            title: l10n.t('book.payAtClinic'),
+            subtitle: l10n.t('book.payAtClinicSub'),
+            icon: Icons.call_outlined,
+            onTap: () => onPayNowChanged(false),
           ),
-        ),
+        ] else
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Palette.warningSoft,
+              borderRadius: BorderRadius.circular(Palette.radiusSm),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 18, color: Palette.warning),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n.t('book.payLater'),
+                    style: const TextStyle(fontSize: 12.5, color: Palette.warning, height: 1.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         if (error != null) ...[
           const SizedBox(height: 14),
@@ -713,10 +915,200 @@ class _ConfirmStep extends StatelessWidget {
                       valueColor: AlwaysStoppedAnimation<Color>(Palette.paper),
                     ),
                   )
-                : Text(l10n.t('book.submit')),
+                : Text(
+                    paying
+                        ? '${l10n.t('book.payNow')} · ${Fmt.money(service.payableNow)}'
+                        : l10n.t('book.submit'),
+                  ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One of the two ways to pay, as a card you tap.
+///
+/// A radio list rather than a switch, because these are not on/off: they are
+/// two different arrangements with two different consequences, and each needs
+/// its own sentence saying what happens next. A patient choosing how to part
+/// with money should be able to read the choice, not infer it from a toggle's
+/// position.
+class _PayChoice extends StatelessWidget {
+  const _PayChoice({
+    required this.selected,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+    this.trailing,
+  });
+
+  final bool selected;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String? trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected ? const Color(0xFFE7F2EC) : Palette.paper,
+        borderRadius: BorderRadius.circular(Palette.radiusCard),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Palette.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: selected ? Palette.indigo : Palette.line,
+                width: selected ? 1.6 : 1,
+              ),
+              borderRadius: BorderRadius.circular(Palette.radiusCard),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  size: 20,
+                  color: selected ? Palette.indigoDeep : Palette.line,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(icon, size: 16, color: Palette.inkSoft),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Palette.ink,
+                              ),
+                            ),
+                          ),
+                          if (trailing != null)
+                            Text(
+                              trailing!,
+                              textDirection: TextDirection.ltr,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Palette.indigoDeep,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Palette.inkSoft,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One gateway inside the "pay now" choice.
+///
+/// The label and the line under it are the server's words, not the app's —
+/// "Debit or credit card · Visa, Mastercard and UnionPay, secured by Safepay"
+/// comes from `/api/payments/methods`. That is on purpose: when the clinic is
+/// approved for another gateway, it appears here correctly described without
+/// anyone updating an app on a patient's phone.
+class _MethodRow extends StatelessWidget {
+  const _MethodRow({
+    required this.method,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final PaymentMethod method;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const _icons = <String, IconData>{
+    'safepay': Icons.credit_card_rounded,
+    'jazzcash': Icons.account_balance_wallet_outlined,
+    'easypaisa': Icons.account_balance_wallet_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Palette.paper,
+      borderRadius: BorderRadius.circular(Palette.radiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Palette.radiusSm),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected ? Palette.indigo : Palette.line,
+              width: selected ? 1.4 : 1,
+            ),
+            borderRadius: BorderRadius.circular(Palette.radiusSm),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _icons[method.id] ?? Icons.payments_outlined,
+                size: 19,
+                color: selected ? Palette.indigoDeep : Palette.inkSoft,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      method.label,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? Palette.indigoDeep : Palette.ink,
+                      ),
+                    ),
+                    if (method.blurb.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        method.blurb,
+                        style: const TextStyle(fontSize: 11.5, color: Palette.inkSoft),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check_rounded, size: 18, color: Palette.indigoDeep),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

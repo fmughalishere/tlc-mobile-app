@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../core/email_verification.dart';
 import '../core/palette.dart';
+import '../core/push.dart';
 import '../core/session.dart';
 import '../data/app_data.dart';
 import '../widgets/common.dart';
@@ -78,6 +79,21 @@ class _BootGateState extends State<BootGate> {
 
     if (_loadedForUid != uid) {
       _loadedForUid = uid;
+
+      // Notifications on the phone, not only in the bell. Started here because
+      // this is the one place that knows a *new* person has signed in — and
+      // registering the same install twice for the same account would have the
+      // server storing a token it already has.
+      //
+      // Deliberately not awaited: permission prompts and a token round trip
+      // must not hold up the appointment list.
+      pushService.onRefresh = () async {
+        // A message arrived. What it said is not trusted — the lists are
+        // reloaded from the server, which is the only thing that knows.
+        await data.refreshNotifications();
+        await data.refreshAppointments();
+      };
+      unawaited(pushService.start());
       // The identity travels with the call so that, if the server has no
       // profile document for this account, AppData can write the one that
       // should have been there instead of leaving the person stranded on a

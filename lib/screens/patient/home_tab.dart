@@ -6,10 +6,12 @@ import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../core/session.dart';
 import '../../data/app_data.dart';
+import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../appointments/appointment_detail_screen.dart';
 import '../booking/book_screen.dart';
+import '../booking/pay_appointment_sheet.dart';
 import '../doctors/doctors_screen.dart';
 import '../services/service_detail_screen.dart';
 
@@ -458,6 +460,38 @@ class AppointmentCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback? onTap;
 
+  /// Opens the payment methods and then reloads from the server.
+  ///
+  /// The reload happens whatever the outcome — paid, cancelled or undecided —
+  /// because the server is the only thing that knows which of those it was,
+  /// and the card behind this sheet is showing a copy that is now out of date.
+  static Future<void> _payNow(BuildContext context, Appointment a) async {
+    final l10n = context.read<LocaleController>();
+    final data = context.read<AppData>();
+
+    final result = await payForAppointment(context, a);
+    await data.refreshAppointments();
+    if (!context.mounted || result == null) return;
+
+    if (result.paid) {
+      showToast(context, l10n.t('book.paid'));
+      return;
+    }
+    if (result.cancelled) {
+      showToast(context, l10n.t('book.payCancelled'), error: true);
+      return;
+    }
+    // Undecided: the slot is still held and paying again could charge twice,
+    // so the message points at the phone rather than at the button.
+    showToast(
+      context,
+      result.message?.trim().isNotEmpty == true
+          ? result.message!
+          : l10n.t(result.attention ? 'book.payAttention' : 'book.payFailed'),
+      error: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -534,6 +568,34 @@ class AppointmentCard extends StatelessWidget {
                   Text(
                     l10n.t('appt.needsDoctor'),
                     style: const TextStyle(fontSize: 12, color: Palette.warning),
+                  ),
+                ],
+
+                // Money owed on a time that is being held, right here on the
+                // card. A patient looking at "waiting for your payment" should
+                // be one tap from fixing it — making them open the appointment
+                // first is a step that exists only because it was easier to
+                // build, and holds are released when they run out.
+                if (a.awaitingPayment && a.paymentStatus != 'paid') ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _payNow(context, a),
+                      icon: const Icon(Icons.lock_outline_rounded, size: 17),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        textStyle: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      label: Text(
+                        a.amount > 0
+                            ? '${l10n.t('pay.confirmAndPay')} · ${Fmt.money(a.amount)}'
+                            : l10n.t('pay.confirmAndPay'),
+                      ),
+                    ),
                   ),
                 ],
               ],

@@ -4,4 +4,11 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Lets a debug build reach a development server over plain http. The
+         config names the local addresses only, and lives in src/debug, so a
+         release build neither sees it nor ships it. See the file itself for
+         the reasoning. -->
+    <application
+        android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>
