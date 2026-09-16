@@ -1,3 +1,4 @@
+import '../i18n/strings.dart';
 import '../models/models.dart';
 
 /// When an online session can be joined, and what to say about it.
@@ -61,20 +62,26 @@ class SessionWindow {
 
   /// The short line next to the join button.
   static String label(Appointment a, DateTime now) {
-    if (a.mode == 'in-person') return 'In-person visit';
-    if (a.status == 'cancelled') return 'Cancelled';
-    if (a.status == 'pending') return 'Awaiting confirmation';
-    if (a.status == 'awaiting-payment') return 'Awaiting patient payment';
-    if (a.sessionStatus == 'ended') return 'Session ended';
-    if (a.sessionStatus == 'live') return 'Live now';
+    if (a.mode == 'in-person') return LocaleController.tr('sess.inPerson');
+    if (a.status == 'cancelled') return LocaleController.tr('sess.cancelled');
+    if (a.status == 'pending') return LocaleController.tr('sess.awaitingConfirmation');
+    if (a.status == 'awaiting-payment') return LocaleController.tr('sess.awaitingPayment');
+    if (a.sessionStatus == 'ended') return LocaleController.tr('sess.ended');
+    if (a.sessionStatus == 'live') return LocaleController.tr('sess.live');
 
     final mins = minutesUntil(a, now);
-    if (mins == null) return 'Scheduled';
+    if (mins == null) return LocaleController.tr('sess.scheduled');
     // Past the scheduled time the session is open — say so, rather than
     // leaving "starting soon" beside a button that already works.
-    if (mins <= 0) return 'Ready to join';
-    if (mins <= 5) return 'Starting soon';
-    if (mins < 60) return 'Starts in $mins min';
-    return 'Starts in ${(mins / 60).round()}h';
+    if (mins <= 0) return LocaleController.tr('sess.readyToJoin');
+    if (mins <= 5) return LocaleController.tr('sess.startingSoon');
+    // The number is substituted into the sentence rather than glued onto the
+    // end of it. Urdu puts it in a different place, and a concatenated "$mins"
+    // cannot move.
+    if (mins < 60) {
+      return LocaleController.tr('sess.startsInMin').replaceFirst('{n}', '$mins');
+    }
+    return LocaleController.tr('sess.startsInHours')
+        .replaceFirst('{n}', '${(mins / 60).round()}');
   }
 }

@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../i18n/strings.dart';
+
 /// Everything the app asks the server for.
 ///
 /// ── Why there is no new backend ──
@@ -173,17 +175,14 @@ class ApiClient {
       final res = await send().timeout(timeout);
       return _decode(res, method, path);
     } on TimeoutException {
-      throw ApiException(
-        0,
-        'The clinic\'s server took too long to answer. Check your connection and try again.',
-      );
+      throw ApiException(0, LocaleController.tr('net.timeout'));
     } on SocketException {
-      throw ApiException(0, 'No connection. Check your internet and try again.');
+      throw ApiException(0, LocaleController.tr('net.offline'));
     } on http.ClientException catch (e) {
       // Covers a connection dropped mid-response, and a client closed under
       // the request. Neither is worth showing raw.
       debugPrint('[ApiClient] $method $path failed: $e');
-      throw ApiException(0, 'The connection dropped. Please try again.');
+      throw ApiException(0, LocaleController.tr('net.dropped'));
     }
   }
 
@@ -216,10 +215,7 @@ class ApiClient {
         );
         if (ok) {
           // A 200 with an unreadable body is a server fault, not a user one.
-          throw ApiException(
-            502,
-            'The server answered with something the app could not read.',
-          );
+          throw ApiException(502, LocaleController.tr('net.unreadable'));
         }
         throw ApiException(
           res.statusCode,
@@ -239,13 +235,19 @@ class ApiClient {
     throw ApiException(res.statusCode, message);
   }
 
+  /// Translated, not hard-coded English.
+  ///
+  /// These are the sentences a patient sees when something fails, which is the
+  /// worst possible moment to hand somebody a language they do not read. There
+  /// is no BuildContext this deep, so the dictionary is reached directly — see
+  /// the note on LocaleController.tr.
   static String _statusMessage(int status) {
-    if (status == 401) return 'Please sign in again.';
-    if (status == 403) return 'You do not have permission to do that.';
-    if (status == 404) return 'That is not there any more.';
-    if (status == 409) return 'Somebody else got there first. Please try again.';
-    if (status >= 500) return 'The clinic\'s server had a problem. Please try again.';
-    return 'Something went wrong. Please try again.';
+    if (status == 401) return LocaleController.tr('net.signInAgain');
+    if (status == 403) return LocaleController.tr('net.forbidden');
+    if (status == 404) return LocaleController.tr('net.notFound');
+    if (status == 409) return LocaleController.tr('net.conflict');
+    if (status >= 500) return LocaleController.tr('net.serverProblem');
+    return LocaleController.tr('net.generic');
   }
 
   /// Closes only a client this instance created. The shared one stays open for

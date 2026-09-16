@@ -183,8 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _googleMessage(Object error) {
     final text = error.toString();
     if (text.contains('sign_in_failed') || text.contains('ApiException: 10')) {
-      return 'Google sign-in is not set up for this build yet — the app\'s '
-          'SHA-1 fingerprint needs adding in the Firebase console.';
+      return context.read<LocaleController>().t('auth.googleNotSetUp');
     }
     if (text.contains('network')) return context.read<LocaleController>().t('common.offline');
     return context.read<LocaleController>().t('auth.googleFailed');
@@ -213,19 +212,21 @@ class _LoginScreenState extends State<LoginScreen> {
   String _readable(FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-email':
-        return 'That email address does not look right.';
+        return context.read<LocaleController>().t('auth.invalidEmail');
       case 'user-disabled':
         return context.read<LocaleController>().t('auth.blocked');
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
-        return 'Email or password is incorrect.';
+        return context.read<LocaleController>().t('auth.wrongCredentials');
       case 'too-many-requests':
-        return 'Too many attempts. Please wait a few minutes.';
+        return context.read<LocaleController>().t('auth.tooManyRequests');
       case 'network-request-failed':
         return context.read<LocaleController>().t('common.offline');
       default:
-        return e.message ?? 'Could not sign you in.';
+        // Firebase's own `message` is English prose written for a developer.
+        // Showing it to a patient in an Urdu app is worse than saying less.
+        return context.read<LocaleController>().t('auth.signInFailed');
     }
   }
 

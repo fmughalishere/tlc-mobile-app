@@ -1,4 +1,5 @@
 import '../core/api_client.dart';
+import '../i18n/strings.dart';
 import '../core/config.dart';
 import '../models/models.dart';
 
@@ -154,6 +155,46 @@ class Repository {
   // app: an APK is a file anybody can download and unzip, so a merchant secret
   // compiled into one is a merchant secret published.
 
+  /// Asks the clinic's server to text a sign-in code to this number.
+  ///
+  /// ── Why this does not use Firebase Phone Auth ──
+  ///
+  /// The app used to, and the website never did — it has always gone through
+  /// Twilio Verify on the clinic's own server. Two OTP systems for one clinic
+  /// is two sets of credentials, two delivery records and two things to be
+  /// broken at once; and the Firebase one carried a trap of its own, because
+  /// Android refuses to send the SMS until the app's SHA-1 and SHA-256 are
+  /// registered in the Firebase console. An unregistered build fails with
+  /// `app-not-authorized` and no code ever arrives.
+  ///
+  /// Going through the server removes both problems. Twilio owns the code, its
+  /// expiry and its retry limits; the server checks it and mints a Firebase
+  /// custom token, so Firebase is still the identity system — it simply is not
+  /// the one sending the text.
+  ///
+  /// Errors come back as i18n keys ("auth.invalidPhone"), so the screen can
+  /// show them in the patient's own language rather than in whatever language
+  /// the server happens to be written in.
+  Future<void> requestPhoneCode(String phoneE164) async {
+    await _api.post('/api/auth/phone/start', {'phone': phoneE164});
+  }
+
+  /// Submits the code and returns a Firebase custom token to sign in with.
+  ///
+  /// The token is only minted after Twilio approves the code, so nothing the
+  /// app sends can claim a number the person does not hold.
+  Future<String> verifyPhoneCode(String phoneE164, String code) async {
+    final body = _map(await _api.post('/api/auth/phone/verify', {
+      'phone': phoneE164,
+      'code': code,
+    }));
+    final token = body['token'];
+    if (token is! String || token.isEmpty) {
+      throw ApiException(502, 'common.somethingWrong');
+    }
+    return token;
+  }
+
   /// Tells the server which phone to send notifications to.
   ///
   /// The uid is never sent — the server takes it from the ID token on the
@@ -308,7 +349,7 @@ class Repository {
     } on ApiException catch (e) {
       if (e.statusCode == 400 &&
           e.message.toLowerCase().contains('nothing to update')) {
-        throw ApiException(400, "That change wasn't saved. Please try again.");
+        throw ApiException(400, LocaleController.tr('net.notSaved'));
       }
       rethrow;
     }

@@ -36,12 +36,18 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
   /// The dictionary keys the rating survey uses, so the breakdown is labelled
   /// the same way the patient was asked. Falls back to the raw key, which is
   /// still readable, if the survey ever grows a question the app has not met.
-  static const _questionLabels = <String, String>{
-    'care': 'Quality of care',
-    'listening': 'Listening to concerns',
-    'courtesy': 'Courtesy of staff',
-    'efficiency': 'Waiting time',
-    'recommend': 'Would recommend',
+  /// The rating dimensions, as i18n keys rather than English.
+  ///
+  /// The admin panel is read in Urdu too — a clinic manager is not a different
+  /// kind of reader from a patient — and a breakdown labelled in English under
+  /// an otherwise Urdu screen is the sort of half-translation that makes a
+  /// product feel unfinished.
+  static const _questionKeys = <String, String>{
+    'care': 'rate.care',
+    'listening': 'rate.listening',
+    'courtesy': 'rate.courtesy',
+    'efficiency': 'rate.efficiency',
+    'recommend': 'rate.recommend',
   };
 
   @override
@@ -153,7 +159,9 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
               const SizedBox(height: 14),
               for (final q in stats.ratingQuestions)
                 _QuestionBar(
-                  label: _questionLabels[q.key] ?? q.key,
+                  label: _questionKeys.containsKey(q.key)
+                      ? l10n.t(_questionKeys[q.key]!)
+                      : q.key,
                   average: q.average,
                   count: q.count,
                 ),

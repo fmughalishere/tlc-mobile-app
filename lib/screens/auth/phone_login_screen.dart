@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_client.dart';
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../data/repository.dart';
@@ -11,16 +12,22 @@ import '../../widgets/common.dart';
 
 /// Signing in with a phone number and a 6-digit code.
 ///
-/// ── The one thing that will bite ──
+/// The code comes from the clinic's own server, over Twilio Verify — the same
+/// path the website uses. This screen never decides whether a code was right;
+/// it sends what was typed, and the server answers with a Firebase custom
+/// token or with a reason.
 ///
-/// Android will refuse to send the SMS until the app's SHA-1 and SHA-256
-/// fingerprints are registered in the Firebase console. It is not a code
-/// problem and there is nothing to fix in this file when it happens: Firebase
-/// verifies the app itself before it will spend an SMS on it, and an
-/// unregistered build fails that check. The error it returns is
-/// `app-not-authorized`, and this screen says so in plain words rather than
-/// showing "an error occurred" — because the fix is a two-minute change in the
-/// console, and only if someone knows that is what is wrong.
+/// ── Why not Firebase Phone Auth ──
+///
+/// It was, and it had a trap with no clue attached: Android refuses to send
+/// the SMS until the app's SHA-1 and SHA-256 are registered in the Firebase
+/// console, and an unregistered build fails with `app-not-authorized` — no
+/// text, no explanation. It also meant the clinic ran two OTP systems for one
+/// set of patients, with two sets of credentials and two delivery records to
+/// check when somebody said "no code arrived".
+///
+/// Errors arrive as i18n keys, so every one of them is shown in the patient's
+/// own language. Nothing on this screen is hard-coded English.
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key, this.onDone});
 
@@ -36,9 +43,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final _name = TextEditingController();
   final _repo = Repository();
 
-  String? _verificationId;
+  /// The number the code went to. Null until one has been sent, which is
+  /// also what tells the screen which of its two stages it is on — there is no
+  /// separate flag to fall out of step with it.
   String? _sentTo;
-  int? _resendToken;
   bool _busy = false;
   String? _error;
 
@@ -52,9 +60,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 
   Future<void> _sendCode() async {
+    final l10n = context.read<LocaleController>();
     final e164 = Fmt.toE164(_phone.text);
     if (e164 == null) {
-      setState(() => _error = context.read<LocaleController>().t('auth.needPhone'));
+      setState(() => _error = l10n.t('auth.needPhone'));
       return;
     }
 
@@ -64,59 +73,23 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: e164,
-        forceResendingToken: _resendToken,
-
-        // Android can read the SMS itself and sign in without the patient
-        // typing anything. When that happens there is no code to enter, so
-        // this path completes the sign-in directly.
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            await FirebaseAuth.instance.signInWithCredential(credential);
-            await _ensureProfile(e164);
-            if (mounted) widget.onDone?.call();
-          } catch (e) {
-            if (mounted) setState(() => _error = errorText(e));
-          }
-        },
-
-        verificationFailed: (FirebaseAuthException e) {
-          if (mounted) setState(() => _error = _readable(e));
-        },
-
-        codeSent: (String verificationId, int? resendToken) {
-          if (!mounted) return;
-          setState(() {
-            _verificationId = verificationId;
-            _resendToken = resendToken;
-            _sentTo = e164;
-          });
-        },
-
-        // Only the auto-retrieval window lapsing. The code is still valid and
-        // the patient can still type it, so this is deliberately not an error.
-        codeAutoRetrievalTimeout: (String verificationId) {
-          if (mounted) setState(() => _verificationId = verificationId);
-        },
-
-        timeout: const Duration(seconds: 60),
-      );
-    } on FirebaseAuthException catch (e) {
-      setState(() => _error = _readable(e));
+      await _repo.requestPhoneCode(e164);
+      if (!mounted) return;
+      setState(() => _sentTo = e164);
     } catch (e) {
-      setState(() => _error = errorText(e));
+      if (mounted) setState(() => _error = _readable(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _verify() async {
-    final id = _verificationId;
+    final l10n = context.read<LocaleController>();
+    final phone = _sentTo;
     final code = _code.text.trim();
-    if (id == null) return;
+    if (phone == null) return;
     if (code.length < 6) {
-      setState(() => _error = context.read<LocaleController>().t('auth.enterCode'));
+      setState(() => _error = l10n.t('auth.enterCode'));
       return;
     }
 
@@ -126,15 +99,12 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     });
 
     try {
-      final credential =
-          PhoneAuthProvider.credential(verificationId: id, smsCode: code);
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      await _ensureProfile(_sentTo ?? '');
+      final token = await _repo.verifyPhoneCode(phone, code);
+      await FirebaseAuth.instance.signInWithCustomToken(token);
+      await _ensureProfile(phone);
       if (mounted) widget.onDone?.call();
-    } on FirebaseAuthException catch (e) {
-      setState(() => _error = _readable(e));
     } catch (e) {
-      setState(() => _error = errorText(e));
+      if (mounted) setState(() => _error = _readable(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -164,36 +134,32 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     await user.getIdToken(true);
   }
 
-  String _readable(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-phone-number':
-        return context.read<LocaleController>().t('auth.needPhone');
-      case 'invalid-verification-code':
-        return 'That code is not right. Check it and try again.';
-      case 'session-expired':
-        return 'That code has expired. Ask for a new one.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please wait a few minutes.';
-      case 'network-request-failed':
-        return context.read<LocaleController>().t('common.offline');
-      case 'app-not-authorized':
-      case 'missing-client-identifier':
-        // The precise wording matters here: without it this reads as a bug in
-        // the app, and someone spends an afternoon in Dart code looking for it.
-        return 'This build is not yet registered for SMS sign-in. '
-            'The app\'s SHA-1 and SHA-256 fingerprints need adding to the '
-            'Firebase console. Use email sign-in in the meantime.';
-      case 'billing-not-enabled':
-        return 'SMS sign-in is not enabled on the Firebase project yet.';
-      default:
-        return e.message ?? 'Could not send the code.';
+  /// Anything thrown, as a sentence in the patient's own language.
+  ///
+  /// The server answers with i18n keys rather than English prose precisely so
+  /// that this can happen — "auth.codeExpired" becomes the Urdu sentence when
+  /// the app is in Urdu. A message that is not a key falls through to the
+  /// shared handler, and an unrecognised key never reaches the screen as a
+  /// key: `t()` returns the key itself when it does not know it, which is how
+  /// "auth.somethingNew" would end up printed on a patient's phone.
+  String _readable(Object error) {
+    final l10n = context.read<LocaleController>();
+
+    if (error is ApiException) {
+      final key = error.message.trim();
+      if (key.startsWith('auth.') || key.startsWith('common.')) {
+        final text = l10n.t(key);
+        if (text != key) return text;
+        return l10n.t('common.somethingWrong');
+      }
     }
+    return errorText(error);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final codeStage = _verificationId != null;
+    final codeStage = _sentTo != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -294,8 +260,13 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   onPressed: _busy
                       ? null
                       : () {
+                          // Back to the number, not a silent re-send.
+                          // Twilio counts sends per number and refuses after a
+                          // few, so a button that quietly fires another one is
+                          // a button that locks the patient out of their own
+                          // sign-in. They confirm the number and press send.
                           setState(() {
-                            _verificationId = null;
+                            _sentTo = null;
                             _code.clear();
                             _error = null;
                           });

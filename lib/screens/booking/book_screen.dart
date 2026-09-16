@@ -207,6 +207,15 @@ class _BookScreenState extends State<BookScreen> {
       return;
     }
 
+    if (result != null && result.openedInBrowser) {
+      // Gone to the phone's own browser. Neither paid nor failed from here —
+      // the redirect lands in Chrome, not in the app. The slot stays held and
+      // nothing is cleared, so coming back to a confirmed appointment and
+      // coming back to finish paying both work.
+      setState(() => _error = l10n.t('pay.inBrowser'));
+      return;
+    }
+
     if (result == null || result.cancelled) {
       // Backed out. They are still on the confirm step with everything they
       // typed intact, which is the whole reason this does not pop.

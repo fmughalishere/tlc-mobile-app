@@ -130,7 +130,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
       final user = credential.user;
-      if (user == null) throw Exception('Account created but no user returned.');
+      if (user == null) {
+        // `l10n`, not `context.read(...)`. This line sits after an await, and
+        // reaching through a BuildContext across an async gap is how a widget
+        // that has been disposed in the meantime throws instead of showing the
+        // message it was asked to show. The dictionary was read at the top of
+        // this method, before any awaiting began.
+        throw Exception(l10n.t('auth.noUserReturned'));
+      }
 
       await user.updateDisplayName(name);
 
@@ -213,8 +220,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _googleMessage(Object error) {
     final text = error.toString();
     if (text.contains('sign_in_failed') || text.contains('ApiException: 10')) {
-      return "Google sign-in is not set up for this build yet — the app's "
-          'SHA-1 fingerprint needs adding in the Firebase console.';
+      return context.read<LocaleController>().t('auth.googleNotSetUp');
     }
     if (text.contains('network')) return context.read<LocaleController>().t('common.offline');
     return context.read<LocaleController>().t('auth.googleFailed');
@@ -223,15 +229,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _readable(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
-        return 'That email already has an account. Try signing in instead.';
+        return context.read<LocaleController>().t('auth.emailInUse');
       case 'invalid-email':
-        return 'That email address does not look right.';
+        return context.read<LocaleController>().t('auth.invalidEmail');
       case 'weak-password':
         return context.read<LocaleController>().t('auth.needPassword');
       case 'network-request-failed':
         return context.read<LocaleController>().t('common.offline');
       default:
-        return e.message ?? 'Could not create the account.';
+        // Firebase's own `message` is English developer prose — not
+        // something to put in front of a patient reading Urdu.
+        return context.read<LocaleController>().t('auth.registerFailed');
     }
   }
 

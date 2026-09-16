@@ -477,6 +477,11 @@ class AppointmentCard extends StatelessWidget {
       showToast(context, l10n.t('book.paid'));
       return;
     }
+    if (result.openedInBrowser) {
+      showToast(context, l10n.t('pay.inBrowser'));
+      return;
+    }
+
     if (result.cancelled) {
       showToast(context, l10n.t('book.payCancelled'), error: true);
       return;

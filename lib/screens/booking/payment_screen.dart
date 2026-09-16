@@ -46,10 +46,18 @@ class PaymentResult {
     this.message,
     this.cancelled = false,
     this.attention = false,
+    this.openedInBrowser = false,
   });
 
   final bool paid;
   final String? message;
+
+  /// The patient left for the phone's own browser to pay.
+  ///
+  /// The app cannot watch what happens there, so this is neither success nor
+  /// failure — it is "go and look at the server". The screen that receives it
+  /// refreshes from the server and tells them how to check.
+  final bool openedInBrowser;
 
   /// Not paid, and not safely failed either.
   ///
@@ -199,6 +207,48 @@ height:100vh;margin:0;color:#5b6670}</style></head>
     return true;
   }
 
+  /// Hands the payment to the phone's own browser instead.
+  ///
+  /// ── Why this exists ──
+  ///
+  /// The in-app WebView is the better experience when it works: the patient
+  /// never leaves the app, and the app sees the clinic's result page the
+  /// moment the gateway redirects to it. But it is a platform view, drawn by
+  /// the device's own WebView engine, and on a phone whose WebView or GPU
+  /// driver is unwell that engine can take more than the app down with it. An
+  /// out-of-date Android System WebView is the usual culprit and is not
+  /// something this app can fix from inside itself.
+  ///
+  /// So there is a door. Chrome renders the same gateway page, in a process
+  /// this app does not own, and the patient can see the real address and the
+  /// padlock while they type a card — which is a fair argument for this being
+  /// the safer path anyway.
+  ///
+  /// What is given up is the automatic result: the redirect lands in the
+  /// browser, not here. Nothing is guessed from that — the appointment list is
+  /// reloaded from the server, which is the only thing that knows whether the
+  /// money arrived.
+  Future<void> _payInBrowser() async {
+    final l10n = context.read<LocaleController>();
+    final url = widget.handover.url;
+
+    // Only for the gateways that hand over a URL. JazzCash and EasyPaisa
+    // document an HTML form POST, and a POST cannot be handed to a browser as
+    // a link — there is nothing honest to open.
+    if (widget.handover.kind != 'url' || url == null || url.isEmpty) {
+      showToast(context, l10n.t('pay.browserUnavailable'), error: true);
+      return;
+    }
+
+    await openUrl(context, url);
+    if (!mounted) return;
+
+    _finished = true;
+    Navigator.of(context).pop(
+      const PaymentResult(paid: false, openedInBrowser: true),
+    );
+  }
+
   Future<void> _confirmLeave() async {
     final l10n = context.read<LocaleController>();
     final leave = await showDialog<bool>(
@@ -243,6 +293,14 @@ height:100vh;margin:0;color:#5b6670}</style></head>
             icon: const Icon(Icons.close_rounded),
             onPressed: _confirmLeave,
           ),
+          actions: [
+            if (widget.handover.kind == 'url')
+              IconButton(
+                tooltip: l10n.t('pay.openInBrowser'),
+                icon: const Icon(Icons.open_in_new_rounded, size: 20),
+                onPressed: _payInBrowser,
+              ),
+          ],
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

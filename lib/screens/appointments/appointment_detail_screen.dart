@@ -98,6 +98,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       return;
     }
 
+    if (result.openedInBrowser) {
+      // Paying in Chrome. The result page lands there, so the app is told
+      // where to look rather than told an outcome it cannot know.
+      showToast(context, l10n.t('pay.inBrowser'));
+      return;
+    }
+
     if (result.cancelled) {
       showToast(context, l10n.t('book.payCancelled'), error: true);
       return;

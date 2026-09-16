@@ -533,7 +533,7 @@ Future<void> _launch(BuildContext context, Uri uri) async {
   try {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      showToast(context, 'Nothing on this phone can open that.', error: true);
+      showToast(context, LocaleController.tr('net.cannotOpen'), error: true);
     }
   } catch (e) {
     if (context.mounted) showToast(context, errorText(e), error: true);
@@ -549,9 +549,20 @@ Future<void> _launch(BuildContext context, Uri uri) async {
 /// `_AssertionError`) tells the person nothing they can act on. They get a
 /// plain sentence; the real text goes to the log, where it is useful.
 String errorText(Object error) {
-  if (error is ApiException) return error.message;
+  if (error is ApiException) {
+    final message = error.message.trim();
+    // The API routes answer some failures with an i18n key rather than prose,
+    // precisely so the app can say it in the reader's own language. A key that
+    // this build does not know falls back to the generic sentence — a key is
+    // never shown to a patient.
+    if (RegExp(r'^[a-z]+\.[A-Za-z]+$').hasMatch(message)) {
+      final text = LocaleController.tr(message);
+      return text == message ? LocaleController.tr('net.generic') : text;
+    }
+    return message;
+  }
   debugPrint('[error] $error');
-  return 'Something went wrong. Please try again.';
+  return LocaleController.tr('net.generic');
 }
 
 /// Patient or doctor.

@@ -64,6 +64,52 @@ class Strings {
     'auth.withEmail': 'Email',
     'auth.withPhone': 'Phone',
     'auth.sendCode': 'Send code',
+    'auth.invalidPhone': "That doesn't look like a valid phone number.",
+    'auth.invalidCode': "That code isn't right. Please check and try again.",
+    'auth.codeExpired': 'That code has expired — request a new one.',
+    'auth.tooManyRequests': 'Too many attempts. Please wait a few minutes.',
+    'auth.resendTooSoon': 'Please wait a moment before asking for another code.',
+    'auth.smsFailed': "We couldn't send the code. Please try again, or use email.",
+    'auth.smsNotConfigured':
+        "Phone sign-in isn't set up yet. Please use email for now.",
+    'net.timeout':
+        "The clinic's server took too long to answer. Check your connection and try again.",
+    'net.offline': 'No connection. Check your internet and try again.',
+    'net.dropped': 'The connection dropped. Please try again.',
+    'net.unreadable': 'The server answered with something the app could not read.',
+    'net.signInAgain': 'Please sign in again.',
+    'net.forbidden': 'You do not have permission to do that.',
+    'net.notFound': 'That is not there any more.',
+    'net.conflict': 'Somebody else got there first. Please try again.',
+    'net.serverProblem': "The clinic's server had a problem. Please try again.",
+    'net.generic': 'Something went wrong. Please try again.',
+    'net.cannotOpen': 'Nothing on this phone can open that.',
+    'net.notSaved': "That change wasn't saved. Please try again.",
+    'auth.googleNoAccount': 'Google signed in, but no account came back.',
+    'sess.inPerson': 'In-person visit',
+    'sess.cancelled': 'Cancelled',
+    'sess.awaitingConfirmation': 'Awaiting confirmation',
+    'sess.awaitingPayment': 'Awaiting patient payment',
+    'sess.ended': 'Session ended',
+    'sess.live': 'Live now',
+    'sess.scheduled': 'Scheduled',
+    'sess.readyToJoin': 'Ready to join',
+    'sess.startingSoon': 'Starting soon',
+    'sess.startsInMin': 'Starts in {n} min',
+    'sess.startsInHours': 'Starts in {n}h',
+    'auth.invalidEmail': 'That email address does not look right.',
+    'auth.wrongCredentials': 'Email or password is incorrect.',
+    'auth.signInFailed': 'Could not sign you in.',
+    'auth.emailInUse': 'That email already has an account. Try signing in instead.',
+    'auth.registerFailed': 'Could not create the account.',
+    'auth.noUserReturned': 'Account created but no user returned.',
+    'auth.googleNotSetUp':
+        "Google sign-in is not set up for this build yet — the app's SHA-1 fingerprint needs adding in the Firebase console.",
+    'rate.care': 'Quality of care',
+    'rate.listening': 'Listening to concerns',
+    'rate.courtesy': 'Courtesy of staff',
+    'rate.efficiency': 'Waiting time',
+    'rate.recommend': 'Would recommend',
     'auth.enterCode': 'Enter the 6-digit code',
     'auth.codeSentTo': 'We sent a code to',
     'auth.verify': 'Verify',
@@ -200,6 +246,11 @@ class Strings {
             'Leaving now releases the time you picked.',
     'pay.keepPaying': 'Stay here',
     'pay.leave': 'Leave',
+    'pay.openInBrowser': 'Open in your browser',
+    'pay.browserUnavailable':
+        'This payment method can only be completed here in the app.',
+    'pay.inBrowser':
+        'The payment page is open in your browser. Finish paying there, then come back — pull down to refresh and your appointment will appear once the payment clears.',
     'pay.chooseMethod': 'How would you like to pay?',
     'pay.confirmAndPay': 'Confirm and pay',
     'pay.dueNow': 'Due now',
@@ -589,6 +640,52 @@ class Strings {
     'auth.withEmail': 'ای میل',
     'auth.withPhone': 'فون',
     'auth.sendCode': 'کوڈ بھیجیں',
+    'auth.invalidPhone': 'یہ فون نمبر درست معلوم نہیں ہوتا۔',
+    'auth.invalidCode': 'کوڈ درست نہیں۔ دوبارہ کوشش کریں۔',
+    'auth.codeExpired': 'کوڈ کی مدت ختم ہو گئی — نیا کوڈ منگوائیں۔',
+    'auth.tooManyRequests': 'بہت زیادہ کوششیں۔ چند منٹ بعد کوشش کریں۔',
+    'auth.resendTooSoon': 'نیا کوڈ منگوانے سے پہلے تھوڑا انتظار کریں۔',
+    'auth.smsFailed': 'کوڈ نہیں بھیجا جا سکا۔ دوبارہ کوشش کریں یا ای میل استعمال کریں۔',
+    'auth.smsNotConfigured':
+        'فون سے داخلہ ابھی ترتیب نہیں دیا گیا۔ فی الحال ای میل استعمال کریں۔',
+    'net.timeout':
+        'کلینک کے سرور نے جواب دینے میں بہت دیر لگا دی۔ اپنا انٹرنیٹ دیکھ کر دوبارہ کوشش کریں۔',
+    'net.offline': 'انٹرنیٹ نہیں ہے۔ کنیکشن دیکھ کر دوبارہ کوشش کریں۔',
+    'net.dropped': 'رابطہ منقطع ہو گیا۔ دوبارہ کوشش کریں۔',
+    'net.unreadable': 'سرور نے ایسا جواب دیا جو ایپ سمجھ نہیں سکی۔',
+    'net.signInAgain': 'براہِ کرم دوبارہ سائن اِن کریں۔',
+    'net.forbidden': 'آپ کو یہ کام کرنے کی اجازت نہیں۔',
+    'net.notFound': 'یہ اب موجود نہیں ہے۔',
+    'net.conflict': 'کوئی اور آپ سے پہلے کر چکا ہے۔ دوبارہ کوشش کریں۔',
+    'net.serverProblem': 'کلینک کے سرور میں مسئلہ آ گیا۔ دوبارہ کوشش کریں۔',
+    'net.generic': 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
+    'net.cannotOpen': 'اس فون میں ایسی کوئی ایپ نہیں جو یہ کھول سکے۔',
+    'net.notSaved': 'تبدیلی محفوظ نہیں ہوئی۔ دوبارہ کوشش کریں۔',
+    'auth.googleNoAccount': 'گوگل سے سائن اِن ہو گیا، مگر کوئی اکاؤنٹ واپس نہیں آیا۔',
+    'sess.inPerson': 'کلینک میں ملاقات',
+    'sess.cancelled': 'منسوخ',
+    'sess.awaitingConfirmation': 'تصدیق کا انتظار',
+    'sess.awaitingPayment': 'مریض کی ادائیگی کا انتظار',
+    'sess.ended': 'سیشن ختم ہو گیا',
+    'sess.live': 'ابھی جاری ہے',
+    'sess.scheduled': 'طے شدہ',
+    'sess.readyToJoin': 'شامل ہونے کے لیے تیار',
+    'sess.startingSoon': 'ابھی شروع ہونے والا ہے',
+    'sess.startsInMin': '{n} منٹ میں شروع',
+    'sess.startsInHours': '{n} گھنٹے میں شروع',
+    'auth.invalidEmail': 'یہ ای میل درست معلوم نہیں ہوتی۔',
+    'auth.wrongCredentials': 'ای میل یا پاس ورڈ درست نہیں۔',
+    'auth.signInFailed': 'سائن اِن نہیں ہو سکا۔',
+    'auth.emailInUse': 'اس ای میل پر پہلے سے اکاؤنٹ موجود ہے۔ سائن اِن کر کے دیکھیں۔',
+    'auth.registerFailed': 'اکاؤنٹ نہیں بن سکا۔',
+    'auth.noUserReturned': 'اکاؤنٹ بن گیا مگر صارف واپس نہیں آیا۔',
+    'auth.googleNotSetUp':
+        'اس بلڈ کے لیے گوگل سائن اِن ابھی ترتیب نہیں دیا گیا — فائربیس کنسول میں ایپ کا SHA-1 شامل کرنا ہو گا۔',
+    'rate.care': 'دیکھ بھال کا معیار',
+    'rate.listening': 'بات سننا اور توجہ دینا',
+    'rate.courtesy': 'عملے کا رویہ',
+    'rate.efficiency': 'انتظار کا وقت',
+    'rate.recommend': 'سفارش کریں گے',
     'auth.enterCode': 'چھ ہندسوں کا کوڈ درج کریں',
     'auth.codeSentTo': 'ہم نے کوڈ بھیجا ہے',
     'auth.verify': 'تصدیق کریں',
@@ -722,6 +819,11 @@ class Strings {
             'ابھی واپس جانے پر منتخب کیا ہوا وقت چھوٹ جائے گا۔',
     'pay.keepPaying': 'یہیں رہیں',
     'pay.leave': 'واپس جائیں',
+    'pay.openInBrowser': 'براؤزر میں کھولیں',
+    'pay.browserUnavailable':
+        'یہ طریقۂ ادائیگی صرف ایپ کے اندر ہی مکمل ہو سکتا ہے۔',
+    'pay.inBrowser':
+        'ادائیگی کا صفحہ آپ کے براؤزر میں کھل گیا ہے۔ وہاں ادائیگی مکمل کریں، پھر واپس آ کر صفحہ نیچے کھینچ کر تازہ کریں — ادائیگی منظور ہوتے ہی آپ کی اپائنٹمنٹ نظر آ جائے گی۔',
     'pay.chooseMethod': 'آپ کس طرح ادائیگی کرنا چاہیں گے؟',
     'pay.confirmAndPay': 'تصدیق کریں اور ادائیگی کریں',
     'pay.dueNow': 'ابھی قابلِ ادائیگی',
@@ -1074,11 +1176,42 @@ class Strings {
 /// SharedPreferences, and reads it before the first frame so an Urdu reader
 /// never sees a flash of English on launch.
 class LocaleController extends ChangeNotifier {
-  LocaleController(this._isUrdu);
+  LocaleController(this._isUrdu) {
+    _current = this;
+  }
 
   static const _key = 'locale.isUrdu';
 
   bool _isUrdu;
+
+  /// The controller the app is actually running with.
+  ///
+  /// ── Why a global, when everything else takes a BuildContext ──
+  ///
+  /// Because plenty of the words a patient reads are not written by a widget.
+  /// The API client turns a dropped connection into a sentence; the session
+  /// window turns a time into "Starts in 20 min"; `errorText` turns anything
+  /// thrown into something a person can act on. None of those has a context to
+  /// reach the dictionary through, so every one of them had its English
+  /// hard-coded — which is how an app can be fully translated and still show
+  /// English the moment something goes wrong. And something going wrong is
+  /// exactly when a patient most needs to be able to read the screen.
+  ///
+  /// Set from the constructor, so it exists before the first frame. There is
+  /// only ever one of these: main() builds it and hands the same instance to
+  /// the provider tree.
+  static LocaleController? _current;
+
+  /// Translates from outside the widget tree. Falls back to the key's English
+  /// before the controller exists, which only happens in tests.
+  static String tr(String key) {
+    final controller = _current;
+    if (controller != null) return controller.t(key);
+    return Strings.en[key] ?? key;
+  }
+
+  /// True when the app is in Urdu, readable from anywhere.
+  static bool get urdu => _current?._isUrdu ?? false;
 
   /// Read before the first frame, in main(). Awaiting it there rather than
   /// inside a widget is the whole point: a FutureBuilder would build one frame

@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../i18n/strings.dart';
+
 import '../data/repository.dart';
 
 /// "Continue with Google", shared by the sign-in and the create-account
@@ -73,7 +75,7 @@ Future<GoogleAuthResult> signInWithGoogle({
   if (user == null) {
     throw FirebaseAuthException(
       code: 'no-user',
-      message: 'Google signed in, but no account came back.',
+      message: LocaleController.tr('auth.googleNoAccount'),
     );
   }
 
