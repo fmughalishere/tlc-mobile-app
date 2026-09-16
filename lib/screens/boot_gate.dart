@@ -40,7 +40,7 @@ class BootGate extends StatefulWidget {
   State<BootGate> createState() => _BootGateState();
 }
 
-class _BootGateState extends State<BootGate> {
+class _BootGateState extends State<BootGate> with WidgetsBindingObserver {
   static const _minimum = Duration(milliseconds: 650);
 
   Timer? _timer;
@@ -54,6 +54,7 @@ class _BootGateState extends State<BootGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _timer = Timer(_minimum, () {
       if (mounted) setState(() => _minimumElapsed = true);
     });
@@ -61,8 +62,35 @@ class _BootGateState extends State<BootGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  /// Reloads whenever the app comes back to the front.
+  ///
+  /// ── Why this earns its place ──
+  ///
+  /// The patient leaves the app constantly, and almost never idly: they go to
+  /// the browser to pay, to their inbox to verify an email, to Chrome to join a
+  /// call. Every one of those changes something on the server, and until now
+  /// the app only found out if somebody thought to pull the list down.
+  ///
+  /// Payment is the case that made this necessary. The gateway's redirect
+  /// lands in the browser, not here, so the app cannot watch it — but coming
+  /// back to the app is itself the signal that something happened. Asking the
+  /// server then is both the simplest way to know and the only reliable one.
+  ///
+  /// Cheap enough to do unconditionally: two requests, only while signed in,
+  /// and only on an actual return to the foreground.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (!mounted || _loadedForUid == null) return;
+
+    final data = context.read<AppData>();
+    unawaited(data.refreshAppointments());
+    unawaited(data.refreshNotifications());
   }
 
   void _syncData(Session session, AppData data) {
