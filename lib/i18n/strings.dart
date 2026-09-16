@@ -245,6 +245,10 @@ class Strings {
         'If you have already entered your card, wait a moment for it to finish. '
             'Leaving now releases the time you picked.',
     'pay.keepPaying': 'Stay here',
+    'pay.openingBrowser':
+        'Opening the payment page in your browser…',
+    'appt.joinNotReady':
+        'The session room is not open yet. Please try again in a moment.',
     'pay.leave': 'Leave',
     'pay.openInBrowser': 'Open in your browser',
     'pay.browserUnavailable':
@@ -818,6 +822,10 @@ class Strings {
         'اگر آپ کارڈ کی تفصیل دے چکی ہیں تو ذرا ٹھہر جائیں، عمل مکمل ہو جائے۔ '
             'ابھی واپس جانے پر منتخب کیا ہوا وقت چھوٹ جائے گا۔',
     'pay.keepPaying': 'یہیں رہیں',
+    'pay.openingBrowser':
+        'ادائیگی کا صفحہ آپ کے براؤزر میں کھولا جا رہا ہے…',
+    'appt.joinNotReady':
+        'سیشن کا کمرہ ابھی نہیں کھلا۔ ایک لمحے بعد دوبارہ کوشش کریں۔',
     'pay.leave': 'واپس جائیں',
     'pay.openInBrowser': 'براؤزر میں کھولیں',
     'pay.browserUnavailable':

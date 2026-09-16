@@ -24,6 +24,7 @@ class TlcApp extends StatelessWidget {
       title: 'TLC Med Clinics',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
+      navigatorKey: navigatorKey,
 
       // Two full themes rather than one theme with a font override. Nastaliq
       // needs more line height than Latin at every text size, so the

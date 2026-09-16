@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../data/app_data.dart';
+import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../appointments/appointment_detail_screen.dart';
 
 /// Reminders, confirmations and the clinic's messages.
 ///
@@ -13,6 +15,34 @@ import '../../widgets/common.dart';
 /// notification the clinic sent is a record of what the patient was told, and
 /// letting either side quietly remove it turns "we did remind you" into an
 /// argument rather than a fact.
+/// Opens whatever a notification is about, and marks it read on the way.
+///
+/// Only appointments for now, because that is what every notification type
+/// this clinic sends is attached to. One that names an appointment the app
+/// does not have — cancelled since, or belonging to somebody else — is left
+/// alone rather than opened onto an empty screen.
+void _open(BuildContext context, AppData data, AppNotification n) {
+  if (!n.read) data.markNotificationRead(n.id);
+
+  final id = n.appointmentId;
+  if (id == null || id.isEmpty) return;
+
+  Appointment? match;
+  for (final a in data.appointments) {
+    if (a.id == id) {
+      match = a;
+      break;
+    }
+  }
+  if (match == null) return;
+
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => AppointmentDetailScreen(appointment: match!),
+    ),
+  );
+}
+
 class NotificationsTab extends StatelessWidget {
   const NotificationsTab({super.key});
 
@@ -88,9 +118,15 @@ class NotificationsTab extends StatelessWidget {
                             borderRadius: BorderRadius.circular(Palette.radiusCard),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(Palette.radiusCard),
-                              onTap: n.read
-                                  ? null
-                                  : () => data.markNotificationRead(n.id),
+                              // Always tappable now, read or not.
+                              //
+                              // Before, a notification that had been read did
+                              // nothing at all when pressed — which is exactly
+                              // when somebody goes back to one, having read
+                              // "your session has started" and wanting the
+                              // session. Marking it read was never the reason
+                              // to tap it.
+                              onTap: () => _open(context, data, n),
                               child: Container(
                                 padding: const EdgeInsets.all(15),
                                 decoration: BoxDecoration(

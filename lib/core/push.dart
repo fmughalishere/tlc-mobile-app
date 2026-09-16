@@ -43,6 +43,14 @@ import '../data/repository.dart';
 /// needs it does not have to import the file that builds the UI.
 final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
+/// The app's navigator, reachable from outside the widget tree.
+///
+/// A notification is tapped while the app is closed. There is no screen, no
+/// BuildContext and no route stack yet — by the time one exists, the tap is
+/// long over. A key held here survives all of that, so the message can still
+/// say "open this appointment" when the app finally has somewhere to open it.
+final navigatorKey = GlobalKey<NavigatorState>();
+
 /// One instance for the app's lifetime.
 ///
 /// Not in the provider tree on purpose: sign-out has to unregister this phone
@@ -64,6 +72,15 @@ class PushService {
   /// Called after something arrives, so the screens catch up with the message
   /// the patient has just been shown. Set by the widget that owns this.
   Future<void> Function()? onRefresh;
+
+  /// Called when a notification is *tapped* and names an appointment.
+  ///
+  /// Separate from [onRefresh] on purpose. A message arriving in the
+  /// background should quietly bring the lists up to date; a message somebody
+  /// deliberately tapped should take them to what it was about. Treating both
+  /// the same is how an app answers "your session has started" by dropping
+  /// someone on a home screen to go and find it.
+  Future<void> Function(String appointmentId)? onOpenAppointment;
 
   /// Starts delivery for the signed-in user.
   ///
@@ -107,23 +124,46 @@ class PushService {
       _messageSub = FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
       _openedSub?.cancel();
-      _openedSub = FirebaseMessaging.onMessageOpenedApp.listen((_) {
-        // Tapped from outside. Whatever the message said, the truth is on the
-        // server — so the lists are reloaded rather than patched from the
-        // notification's own text.
-        onRefresh?.call();
-      });
+      _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(_onOpened);
 
       // Opened from cold by tapping a notification: the stream above never
       // fires for that one, because it arrived before anything was listening.
       final initial = await FirebaseMessaging.instance.getInitialMessage();
-      if (initial != null) onRefresh?.call();
+      if (initial != null) {
+        // A beat, so the app has finished deciding which screen it opens to.
+        // Pushing a route onto a Navigator that is still being built puts the
+        // appointment underneath the home screen instead of on top of it.
+        Future<void>.delayed(const Duration(milliseconds: 700), () {
+          _onOpened(initial);
+        });
+      }
     } catch (error, stack) {
       // Push is a courtesy layer. A phone without Play Services, a project
       // without messaging configured, a simulator — none of these should stop
       // somebody booking an appointment.
       debugPrint('[push] could not start: $error\n$stack');
     }
+  }
+
+  /// A notification the patient tapped.
+  ///
+  /// The lists are reloaded first and the screen opened afterwards, in that
+  /// order: the message may be the first the app has heard of this
+  /// appointment — a follow-up the doctor booked a minute ago — and opening it
+  /// before the data arrives shows an empty screen for something that exists.
+  ///
+  /// Nothing is read from the notification except the id. What it *says* about
+  /// the appointment is a copy of how things were when it was sent, and by the
+  /// time somebody taps it the session may have ended.
+  void _onOpened(RemoteMessage message) {
+    final id = message.data['appointmentId'];
+
+    () async {
+      await onRefresh?.call();
+      if (id is String && id.isNotEmpty) {
+        await onOpenAppointment?.call(id);
+      }
+    }();
   }
 
   Future<void> _register(String token) async {

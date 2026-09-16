@@ -84,6 +84,53 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   ///
   /// Nothing here decides whether the payment succeeded. The server does that
   /// when the gateway's callback reaches it; this only reads the answer.
+  /// Joins the video session.
+  ///
+  /// ── Why this is not just opening `roomUrl` ──
+  ///
+  /// It was, and it could never have worked. The clinic's Daily rooms are
+  /// private: the room URL on its own is a door with no key, and Daily says
+  /// so in the bluntest way it has — "You are not allowed to join this
+  /// meeting. Contact the meeting host for help." Which reads, to a patient,
+  /// as the clinic having shut them out of their own appointment.
+  ///
+  /// The key is a join token, and only the server can mint one. It hands one
+  /// back from `/api/appointments/:id/session`, named for whoever asked and
+  /// marked host or guest — which is also what stops a patient turning up in
+  /// somebody else's consultation with a URL they were forwarded.
+  ///
+  /// The website has always done this. The app had the call written and never
+  /// used it.
+  Future<void> _joinCall() async {
+    final l10n = context.read<LocaleController>();
+    setState(() => _busy = true);
+
+    try {
+      final result = await _repo.startSession(_appointment.id);
+      if (!mounted) return;
+
+      // The server may have created the room on this very call, so the fresh
+      // appointment is kept rather than the copy this screen was opened with.
+      setState(() => _appointment = result.appointment);
+
+      final url = result.appointment.roomUrl;
+      if (url == null || url.isEmpty) {
+        showToast(context, l10n.t('appt.joinNotReady'), error: true);
+        return;
+      }
+
+      final token = result.joinToken;
+      await openUrl(
+        context,
+        token == null || token.isEmpty ? url : '\$url?t=\$token',
+      );
+    } catch (e) {
+      if (mounted) showToast(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _payNow() async {
     final l10n = context.read<LocaleController>();
     final result = await payForAppointment(context, _appointment);
@@ -322,7 +369,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => openUrl(context, a.roomUrl!),
+                onPressed: _busy ? null : _joinCall,
                 icon: const Icon(Icons.videocam_rounded, size: 20),
                 label: Text(l10n.t('appt.joinCall')),
               ),

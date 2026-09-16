@@ -90,15 +90,46 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  late final WebViewController _controller;
+  /// Built only for the wallet form-post flow. See [_usesBrowser].
+  WebViewController? _controller;
   bool _loading = true;
   bool _finished = false;
+
+  /// True when this handover is going to the phone's own browser instead.
+  ///
+  /// ── Why the card flow no longer uses the in-app WebView ──
+  ///
+  /// Because on at least one real phone it did not merely fail — it took the
+  /// whole device down and rebooted it, every time, at the moment the payment
+  /// page began to render. An app cannot reboot a phone from Dart; what can is
+  /// the WebView, which is a platform view drawn by the device's own browser
+  /// engine through its GPU driver, in a process this app does not control.
+  /// When that engine is unwell it can take the system down with it, and there
+  /// is nothing this app can do about it from the inside.
+  ///
+  /// The same page in the same phone's Chrome works. So the card payment goes
+  /// there. What is given up is the automatic result — the gateway's redirect
+  /// lands in Chrome, not here — and that is a fair trade against a payment
+  /// screen that restarts the phone.
+  ///
+  /// The wallets stay in the WebView because they have to: JazzCash and
+  /// EasyPaisa document an HTML form POST, and a POST cannot be handed to a
+  /// browser as a link. They are also not what was crashing.
+  bool get _usesBrowser =>
+      widget.handover.kind == 'url' && (widget.handover.url ?? '').isNotEmpty;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = WebViewController()
+    if (_usesBrowser) {
+      // After the first frame: this pushes a route and pops this one, and
+      // doing either while the widget is still being inserted is an error.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _payInBrowser());
+      return;
+    }
+
+    final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Palette.paper)
       ..setNavigationDelegate(
@@ -138,11 +169,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
+    _controller = controller;
+
     final handover = widget.handover;
     if (handover.kind == 'form' && (handover.action ?? '').isNotEmpty) {
-      _controller.loadHtmlString(_formShell(handover), baseUrl: AppConfig.apiBaseUrl);
+      _controller!.loadHtmlString(_formShell(handover), baseUrl: AppConfig.apiBaseUrl);
     } else if ((handover.url ?? '').isNotEmpty) {
-      _controller.loadRequest(Uri.parse(handover.url!));
+      _controller!.loadRequest(Uri.parse(handover.url!));
     }
   }
 
@@ -278,6 +311,31 @@ height:100vh;margin:0;color:#5b6670}</style></head>
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
+    // Handing over to the browser. On screen for an instant, and it should
+    // say what is happening rather than flash an empty payment page.
+    if (_usesBrowser) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.methodLabel)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.open_in_new_rounded, size: 34, color: Palette.inkSoft),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.t('pay.openingBrowser'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return PopScope(
       // Leaving mid-payment is one of the few places in this app where a
       // stray back-swipe costs something real: the patient may have paid and
@@ -314,7 +372,7 @@ height:100vh;margin:0;color:#5b6670}</style></head>
         ),
         body: Stack(
           children: [
-            WebViewWidget(controller: _controller),
+            if (_controller != null) WebViewWidget(controller: _controller!),
             if (_loading)
               const ColoredBox(
                 color: Palette.paper,

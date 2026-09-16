@@ -9,7 +9,9 @@ import '../core/push.dart';
 import '../core/session.dart';
 import '../data/app_data.dart';
 import '../widgets/common.dart';
+import '../models/models.dart';
 import 'admin/admin_shell.dart';
+import 'appointments/appointment_detail_screen.dart';
 import 'auth/login_screen.dart';
 import 'auth/verify_email_screen.dart';
 import 'doctor/doctor_shell.dart';
@@ -93,6 +95,33 @@ class _BootGateState extends State<BootGate> {
         await data.refreshNotifications();
         await data.refreshAppointments();
       };
+
+      // Tapped, not merely received: take them to what it was about.
+      pushService.onOpenAppointment = (appointmentId) async {
+        final navigator = navigatorKey.currentState;
+        if (navigator == null) return;
+
+        Appointment? match;
+        for (final a in data.appointments) {
+          if (a.id == appointmentId) {
+            match = a;
+            break;
+          }
+        }
+
+        // Not in the list. Rather than guess, do nothing beyond the refresh
+        // that already ran — a doctor tapping a patient's notification, or an
+        // appointment cancelled since the message went out, both land here and
+        // neither wants a broken screen.
+        if (match == null) return;
+
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => AppointmentDetailScreen(appointment: match!),
+          ),
+        );
+      };
+
       unawaited(pushService.start());
       // The identity travels with the call so that, if the server has no
       // profile document for this account, AppData can write the one that
