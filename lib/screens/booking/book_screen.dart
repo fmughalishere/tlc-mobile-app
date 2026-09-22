@@ -56,6 +56,7 @@ class _BookScreenState extends State<BookScreen> {
   final _phone = TextEditingController();
   final _notes = TextEditingController();
   final _preferredWhen = TextEditingController();
+  final _coupon = TextEditingController();
 
   int _step = 0;
   Service? _service;
@@ -80,11 +81,30 @@ class _BookScreenState extends State<BookScreen> {
   /// other option is one tap away, clearly labelled, on the same screen.
   bool _payNow = false;
 
+  /// "new" or "follow-up" — the website's first question. It decides which
+  /// services are listed (follow-ups are their own priced services) and
+  /// whether a coupon can be used, since the clinic's coupons are for first
+  /// visits only.
+  String _patientType = 'new';
+
+  /// How an online consultation happens: "video", "audio" or "chat". The same
+  /// three the website offers; a chat booking opens the in-app chat.
+  String _channel = 'video';
+
+  /// The coupon the patient applied, if any. Its discount is shown as an
+  /// estimate — the server prices the booking and its figure is charged.
+  CouponCheck? _appliedCoupon;
+  bool _checkingCoupon = false;
+  String? _couponError;
+
   @override
   void initState() {
     super.initState();
     _service = widget.preselected;
-    if (_service != null) _step = 1;
+    if (_service != null) {
+      _step = 1;
+      _patientType = _isFollowUpService(_service!) ? 'follow-up' : 'new';
+    }
 
     // Prefilled from the account, and still editable: the person booking is
     // sometimes not the person who made the account — a daughter booking for
@@ -131,9 +151,70 @@ class _BookScreenState extends State<BookScreen> {
     _phone.dispose();
     _notes.dispose();
     _preferredWhen.dispose();
+    _coupon.dispose();
     _repo.close();
     super.dispose();
   }
+
+  /// Coupons are for new patients, on a service with something to pay.
+  bool get _couponAllowed =>
+      _patientType == 'new' && (_service?.payableNow ?? 0) > 0;
+
+  CouponCheck? get _activeCoupon => _couponAllowed ? _appliedCoupon : null;
+
+  /// What the app expects the patient to pay now, after any coupon. Shown on
+  /// screen and sent along, but only as an estimate — see [_payFor].
+  num get _payable {
+    final base = _service?.payableNow ?? 0;
+    final coupon = _activeCoupon;
+    return coupon == null ? base : base - coupon.discountOn(base);
+  }
+
+  String? get _sessionType {
+    final service = _service;
+    if (_patientType != 'follow-up' || service == null) return null;
+    return _guessSessionType(service);
+  }
+
+  void _clearCoupon() {
+    _appliedCoupon = null;
+    _couponError = null;
+    _coupon.clear();
+  }
+
+  Future<void> _applyCoupon() async {
+    final code = _coupon.text.trim();
+    if (code.isEmpty || _checkingCoupon) return;
+
+    final l10n = context.read<LocaleController>();
+    final email = context.read<Session>().user?.email ??
+        context.read<AppData>().profile?.email;
+
+    setState(() {
+      _checkingCoupon = true;
+      _couponError = null;
+      _appliedCoupon = null;
+    });
+
+    try {
+      final check = await _repo.checkCoupon(code, patientEmail: email);
+      if (!mounted) return;
+      setState(() {
+        if (check.valid) {
+          _appliedCoupon = check;
+        } else {
+          _couponError = l10n.t(check.reason ?? 'book.couponInvalid');
+        }
+      });
+      if (check.valid) showToast(context, l10n.t('book.couponApplied'));
+    } catch (e) {
+      if (mounted) setState(() => _couponError = errorText(e));
+    } finally {
+      if (mounted) setState(() => _checkingCoupon = false);
+    }
+  }
+
+  void _removeCoupon() => setState(_clearCoupon);
 
   void _back() {
     if (_step == 0) {
@@ -165,7 +246,10 @@ class _BookScreenState extends State<BookScreen> {
       !_requesting &&
       _gateway != null &&
       _methods.isNotEmpty &&
-      (_service?.payableNow ?? 0) > 0;
+      (_service?.payableNow ?? 0) > 0 &&
+      // A coupon that takes the whole amount leaves nothing for a gateway to
+      // charge — the server refuses that — so it is booked unpaid instead.
+      _payable > 0;
 
   /// Hands the patient to the gateway and deals with whichever of the three
   /// things happened.
@@ -184,23 +268,44 @@ class _BookScreenState extends State<BookScreen> {
       orElse: () => _methods.first,
     );
 
-    final handover = await _repo.startBookingPayment(
+    final expected = _payable;
+    final handover = await _repo.startNewBookingPayment(
       gateway: method.id,
       service: service.name,
       slot: slot,
       patientName: name,
-      amount: service.payableNow,
+      amount: expected,
+      mode: slot.isOnline ? _channel : 'in-person',
       patientPhone: phone,
       notes: _notes.text.trim(),
+      patientType: _patientType,
+      sessionType: _sessionType,
+      couponCode: _activeCoupon?.code,
     );
 
     if (!mounted) return;
+
+    // The server's figure wins. It re-prices every booking from the service
+    // and coupon documents, and a coupon it would not honour is dropped rather
+    // than refused. `/api/payments/start` does not return the amount as such,
+    // but the wallet forms carry it, so where it can be read it is the figure
+    // shown — and if it differs from what this screen said, the patient is
+    // told before they pay, not after. (A card handover is a bare URL; the
+    // gateway's own page shows the amount there.)
+    final charged = _serverAmount(handover) ?? expected;
+    if (charged.round() != expected.round()) {
+      showToast(
+        context,
+        l10n.t('book.priceChanged').replaceAll('{amount}', Fmt.money(charged)),
+      );
+    }
+
     final result = await Navigator.of(context).push<PaymentResult>(
       MaterialPageRoute<PaymentResult>(
         builder: (_) => PaymentScreen(
           handover: handover,
           methodLabel: method.label,
-          amountPkr: service.payableNow,
+          amountPkr: charged,
         ),
       ),
     );
@@ -287,12 +392,17 @@ class _BookScreenState extends State<BookScreen> {
 
     try {
       if (_requesting) {
-        await _repo.requestAppointment(
+        await _repo.requestDoctorAssignment(
           service: service.name,
           patientName: name,
           patientPhone: phone,
           preferredWhen: _preferredWhen.text.trim(),
           notes: _notes.text.trim(),
+          mode: _mode == 'in-clinic' ? 'in-person' : _channel,
+          amount: _payable,
+          patientType: _patientType,
+          sessionType: _sessionType,
+          couponCode: _activeCoupon?.code,
         );
       } else {
         final slot = _slot;
@@ -305,14 +415,17 @@ class _BookScreenState extends State<BookScreen> {
           return;
         }
 
-        await _repo.book(
+        await _repo.bookCallBack(
           service: service.name,
           slotId: slot.id,
           patientName: name,
           patientPhone: phone,
-          mode: slot.isOnline ? 'video' : 'in-person',
-          amount: service.payableNow,
+          mode: slot.isOnline ? _channel : 'in-person',
+          amount: _payable,
           notes: _notes.text.trim(),
+          patientType: _patientType,
+          sessionType: _sessionType,
+          couponCode: _activeCoupon?.code,
         );
       }
 
@@ -407,7 +520,13 @@ class _BookScreenState extends State<BookScreen> {
     switch (_step) {
       case 0:
         return _ServiceStep(
+          patientType: _patientType,
+          onPatientType: (type) => setState(() {
+            _patientType = type;
+            _clearCoupon();
+          }),
           onPick: (service) => setState(() {
+            if (_service?.id != service.id) _clearCoupon();
             _service = service;
             _step = 1;
           }),
@@ -458,16 +577,61 @@ class _BookScreenState extends State<BookScreen> {
             _error = null;
           }),
           onGatewayChanged: (id) => setState(() => _gateway = id),
+          payable: _payable,
+          couponAllowed: _couponAllowed,
+          coupon: _coupon,
+          appliedCoupon: _activeCoupon,
+          checkingCoupon: _checkingCoupon,
+          couponError: _couponError,
+          onApplyCoupon: _applyCoupon,
+          onRemoveCoupon: _removeCoupon,
+          showChannel: _slot?.isOnline ?? (_mode == 'online'),
+          channel: _channel,
+          onChannelChanged: (value) => setState(() => _channel = value),
         );
     }
   }
 }
 
+/// Follow-up bookings are ordinary services the clinic files under a
+/// "Follow-up" category — the website's rule, word for word
+/// (`isFollowUpService` in src/app/patient/book/page.tsx).
+bool _isFollowUpService(Service s) {
+  final pattern = RegExp('follow|session', caseSensitive: false);
+  return pattern.hasMatch(s.category) || pattern.hasMatch(s.name);
+}
+
+/// The session length the website records for a follow-up, read off the
+/// service's name the same way it does.
+String _guessSessionType(Service s) {
+  if (s.name.contains('60')) return 'session-60';
+  if (s.name.contains('30')) return 'session-30';
+  return 'regular-followup';
+}
+
+/// The amount the server wrote into a wallet handover, in rupees, or null
+/// when this handover does not carry one. JazzCash sends paisa in
+/// `pp_Amount`; EasyPaisa sends rupees in `amount`.
+num? _serverAmount(PaymentHandover handover) {
+  if (handover.kind != 'form') return null;
+  final jazz = num.tryParse(handover.fields['pp_Amount'] ?? '');
+  if (jazz != null) return jazz / 100;
+  final easy = num.tryParse(handover.fields['amount'] ?? '');
+  if (easy != null) return easy;
+  return null;
+}
+
 // ── Step 1: the service ─────────────────────────────────────────────────────
 
 class _ServiceStep extends StatelessWidget {
-  const _ServiceStep({required this.onPick});
+  const _ServiceStep({
+    required this.patientType,
+    required this.onPatientType,
+    required this.onPick,
+  });
 
+  final String patientType;
+  final void Function(String) onPatientType;
   final void Function(Service) onPick;
 
   @override
@@ -499,10 +663,58 @@ class _ServiceStep extends StatelessWidget {
       );
     }
 
+    // The new / follow-up question is only asked when the clinic actually has
+    // follow-up services. Without any, every booking is a new one — which is
+    // also what the website's filter comes to — and a choice that leads to an
+    // empty list is not a choice.
+    final hasFollowUps = data.services.any(_isFollowUpService);
+    final type = hasFollowUps ? patientType : 'new';
+    final visible = hasFollowUps
+        ? data.services
+            .where((s) => _isFollowUpService(s) == (type == 'follow-up'))
+            .toList()
+        : data.services;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
-        for (final service in data.services)
+        if (hasFollowUps) ...[
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment<String>(
+                  value: 'new',
+                  label: Text(l10n.t('book.newPatient')),
+                ),
+                ButtonSegment<String>(
+                  value: 'follow-up',
+                  label: Text(l10n.t('book.followUp')),
+                ),
+              ],
+              selected: {type},
+              onSelectionChanged: (picked) {
+                if (picked.isNotEmpty) onPatientType(picked.first);
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.t(type == 'new' ? 'book.newPatientHint' : 'book.followUpHint'),
+            style: const TextStyle(fontSize: 12.5, color: Palette.inkSoft, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (visible.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 30),
+            child: EmptyState(
+              icon: Icons.medical_services_outlined,
+              title: l10n.t('book.noServicesType'),
+            ),
+          ),
+        for (final service in visible)
           ChoiceCard(
             title: service.displayName(urdu),
             subtitle: service.price == null
@@ -734,6 +946,17 @@ class _ConfirmStep extends StatelessWidget {
     required this.gateway,
     required this.onPayNowChanged,
     required this.onGatewayChanged,
+    required this.payable,
+    required this.couponAllowed,
+    required this.coupon,
+    required this.appliedCoupon,
+    required this.checkingCoupon,
+    required this.couponError,
+    required this.onApplyCoupon,
+    required this.onRemoveCoupon,
+    required this.showChannel,
+    required this.channel,
+    required this.onChannelChanged,
   });
 
   final Service service;
@@ -752,14 +975,30 @@ class _ConfirmStep extends StatelessWidget {
   final void Function(bool) onPayNowChanged;
   final void Function(String) onGatewayChanged;
 
+  /// What the app expects to be paid now, after any coupon.
+  final num payable;
+  final bool couponAllowed;
+  final TextEditingController coupon;
+  final CouponCheck? appliedCoupon;
+  final bool checkingCoupon;
+  final String? couponError;
+  final VoidCallback onApplyCoupon;
+  final VoidCallback onRemoveCoupon;
+
+  /// Video, audio or chat — asked only when the consultation is online.
+  final bool showChannel;
+  final String channel;
+  final void Function(String) onChannelChanged;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final urdu = context.isUrdu;
+    final discount = appliedCoupon?.discountOn(service.payableNow) ?? 0;
 
     // A paid booking needs all three: a time to attach the money to, a price,
     // and somewhere for the money to go.
-    final canPay = slot != null && service.payableNow > 0 && methods.isNotEmpty;
+    final canPay = slot != null && payable > 0 && methods.isNotEmpty;
     final paying = canPay && payNow;
 
     return ListView(
@@ -810,6 +1049,17 @@ class _ConfirmStep extends StatelessWidget {
                   label: l10n.t('services.price'),
                   value: Fmt.money(service.price),
                 ),
+              if (appliedCoupon != null && discount > 0) ...[
+                DetailRow(
+                  label: '${l10n.t('book.discount')} · ${appliedCoupon!.code}',
+                  value: '− ${Fmt.money(discount)}',
+                ),
+                DetailRow(
+                  label: l10n.t('book.payable'),
+                  value: Fmt.money(payable),
+                  emphasis: true,
+                ),
+              ],
             ],
           ),
         ),
@@ -842,6 +1092,27 @@ class _ConfirmStep extends StatelessWidget {
           ),
         ],
 
+        if (showChannel) ...[
+          const SizedBox(height: 16),
+          Text(
+            l10n.t('book.howToMeet'),
+            style: const TextStyle(fontSize: 12.5, color: Palette.inkSoft),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final option in const ['video', 'audio', 'chat'])
+                ChoiceChip(
+                  label: Text(l10n.t('mode.$option')),
+                  selected: channel == option,
+                  onSelected: (_) => onChannelChanged(option),
+                ),
+            ],
+          ),
+        ],
+
         const SizedBox(height: 12),
         TextField(
           controller: notes,
@@ -852,6 +1123,20 @@ class _ConfirmStep extends StatelessWidget {
           ),
         ),
 
+        if (couponAllowed) ...[
+          const SizedBox(height: 16),
+          _CouponBox(
+            controller: coupon,
+            applied: appliedCoupon,
+            discount: discount,
+            payable: payable,
+            checking: checkingCoupon,
+            error: couponError,
+            onApply: onApplyCoupon,
+            onRemove: onRemoveCoupon,
+          ),
+        ],
+
         const SizedBox(height: 22),
         if (canPay) ...[
           SectionHeader(title: l10n.t('book.howPay')),
@@ -860,7 +1145,7 @@ class _ConfirmStep extends StatelessWidget {
             title: l10n.t('book.payNow'),
             subtitle: l10n.t('book.payNowSub'),
             icon: Icons.lock_outline_rounded,
-            trailing: Fmt.money(service.payableNow),
+            trailing: Fmt.money(payable),
             onTap: () => onPayNowChanged(true),
           ),
           if (payNow) ...[
@@ -936,10 +1221,137 @@ class _ConfirmStep extends StatelessWidget {
                   )
                 : Text(
                     paying
-                        ? '${l10n.t('book.payNow')} · ${Fmt.money(service.payableNow)}'
+                        ? '${l10n.t('book.payNow')} · ${Fmt.money(payable)}'
                         : l10n.t('book.submit'),
                   ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Have a coupon?" — the website's coupon field, on the confirm step.
+///
+/// Once applied it turns into a line saying what was taken off and what is
+/// left to pay, with a way to take it off again. The figure is the app's
+/// estimate; the server prices the booking and a code it will not honour is
+/// dropped there, with the normal price charged.
+class _CouponBox extends StatelessWidget {
+  const _CouponBox({
+    required this.controller,
+    required this.applied,
+    required this.discount,
+    required this.payable,
+    required this.checking,
+    required this.error,
+    required this.onApply,
+    required this.onRemove,
+  });
+
+  final TextEditingController controller;
+  final CouponCheck? applied;
+  final int discount;
+  final num payable;
+  final bool checking;
+  final String? error;
+  final VoidCallback onApply;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final coupon = applied;
+
+    if (coupon != null) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE7F2EC),
+          border: Border.all(color: Palette.indigo),
+          borderRadius: BorderRadius.circular(Palette.radiusSm),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.local_offer_outlined, size: 18, color: Palette.indigoDeep),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.t('book.couponAppliedCode').replaceAll('{code}', coupon.code),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: Palette.indigoDeep,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n
+                        .t('book.couponSaving')
+                        .replaceAll('{discount}', Fmt.money(discount))
+                        .replaceAll('{total}', Fmt.money(payable)),
+                    style: const TextStyle(fontSize: 12, color: Palette.inkSoft, height: 1.5),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.t('book.couponServerNote'),
+                    style: const TextStyle(fontSize: 11.5, color: Palette.inkSoft, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: onRemove,
+              child: Text(l10n.t('book.couponRemove')),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.t('book.coupon'),
+          style: const TextStyle(fontSize: 12.5, color: Palette.inkSoft),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.characters,
+                textDirection: TextDirection.ltr,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => onApply(),
+                decoration: InputDecoration(
+                  hintText: l10n.t('book.couponPlaceholder'),
+                  errorText: error,
+                  errorMaxLines: 3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: OutlinedButton(
+                onPressed: checking ? null : onApply,
+                child: checking
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.t('book.apply')),
+              ),
+            ),
+          ],
         ),
       ],
     );

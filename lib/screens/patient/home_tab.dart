@@ -12,7 +12,9 @@ import '../../widgets/common.dart';
 import '../appointments/appointment_detail_screen.dart';
 import '../booking/book_screen.dart';
 import '../booking/pay_appointment_sheet.dart';
+import '../contact/contact_screen.dart';
 import '../doctors/doctors_screen.dart';
+import '../info/info_screen.dart';
 import '../services/service_detail_screen.dart';
 
 /// The first screen a signed-in patient sees.
@@ -173,6 +175,14 @@ class HomeTab extends StatelessWidget {
               ),
             ),
             _WideTile(
+              icon: Icons.menu_book_outlined,
+              title: l10n.t('info.homeTitle'),
+              subtitle: l10n.t('info.homeSub'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const InfoScreen()),
+              ),
+            ),
+            _WideTile(
               icon: Icons.call_rounded,
               title: l10n.t('common.callClinic'),
               subtitle: AppConfig.clinicPhoneDisplay,
@@ -183,6 +193,14 @@ class HomeTab extends StatelessWidget {
               title: l10n.t('common.whatsapp'),
               subtitle: l10n.t('home.callSub'),
               onTap: () => openWhatsApp(context),
+            ),
+            _WideTile(
+              icon: Icons.mail_outline_rounded,
+              title: l10n.t('contact.title'),
+              subtitle: l10n.t('contact.homeSub'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ContactScreen()),
+              ),
             ),
           ],
         ),

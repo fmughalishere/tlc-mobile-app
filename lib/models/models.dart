@@ -976,3 +976,54 @@ class AdminStats {
     );
   }
 }
+
+
+/// What the clinic said about a coupon code a patient typed at booking.
+///
+/// Deliberately not a [Coupon]: that model is the admin's, and carries the
+/// list of email addresses a restricted code was issued to. A patient's screen
+/// has no business holding other people's addresses, so this keeps only what
+/// the booking screen shows — the code and its discount — or, when the code
+/// cannot be used, the i18n key for why.
+///
+/// The discount worked out here is the app's estimate for display. The server
+/// prices every booking itself and its figure is the one charged.
+class CouponCheck {
+  const CouponCheck({
+    required this.valid,
+    this.code = '',
+    this.discountType = 'percent',
+    this.discountValue = 0,
+    this.reason,
+  });
+
+  const CouponCheck.rejected(String this.reason)
+      : valid = false,
+        code = '',
+        discountType = 'percent',
+        discountValue = 0;
+
+  final bool valid;
+
+  /// Upper-cased, as the clinic stores it.
+  final String code;
+
+  /// "percent" or "flat".
+  final String discountType;
+  final num discountValue;
+
+  /// An i18n key, set only when [valid] is false.
+  final String? reason;
+
+  /// Whole rupees off [payable], the same sum the server does: never below
+  /// zero and never more than the amount itself.
+  int discountOn(num payable) {
+    if (!valid || payable <= 0) return 0;
+    final num raw =
+        discountType == 'flat' ? discountValue : payable * discountValue / 100;
+    final rounded = raw.round();
+    final cap = payable.round();
+    if (rounded < 0) return 0;
+    return rounded > cap ? cap : rounded;
+  }
+}

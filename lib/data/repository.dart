@@ -772,5 +772,214 @@ class Repository {
     await _api.delete('/api/blogs/$id');
   }
 
+  // ── Booking, field for field with the website ─────────────────────────────
+  //
+  // `book`, `startBookingPayment` and `requestAppointment` above predate the
+  // website's visit type, session length and coupon. These three send
+  // everything the website's booking page sends (src/app/patient/book/page.tsx),
+  // so a booking made in the app is indistinguishable from one made on the web.
+  // The older three are left as they were for anything still calling them.
+
+  /// The unpaid path with every field the website sends. See [book].
+  ///
+  /// `amount` and a discount are only ever the app's estimate: the server
+  /// prices the booking itself from the service and the coupon documents
+  /// (lib/pricing.ts on the website), and a figure sent from here is ignored.
+  Future<Appointment> bookCallBack({
+    required String service,
+    required String slotId,
+    required String patientName,
+    String? patientPhone,
+    String mode = 'video',
+    num amount = 0,
+    String? notes,
+    String patientType = 'new',
+    String? sessionType,
+    String? couponCode,
+  }) async {
+    final body = _map(await _api.post('/api/appointments', {
+      'service': service,
+      'slotId': slotId,
+      'bookingType': 'call-back',
+      'patientName': patientName,
+      if (patientPhone != null && patientPhone.isNotEmpty) 'patientPhone': patientPhone,
+      'mode': mode,
+      'amount': amount,
+      'patientType': patientType,
+      if (sessionType != null && sessionType.isNotEmpty) 'sessionType': sessionType,
+      if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    }));
+    final inner = body['appointment'];
+    return Appointment.fromJson(
+      inner is Map ? Map<String, dynamic>.from(inner) : body,
+    );
+  }
+
+  /// [startBookingPayment] with every field the website sends.
+  ///
+  /// The server re-prices the booking and charges its own figure whatever
+  /// `amount` says; `amount` is read there only to log a disagreement. A code
+  /// the server will not honour (expired a minute ago, restricted to another
+  /// account) is dropped rather than refused, and the patient is charged the
+  /// normal price — see `quoteBooking` on the website.
+  Future<PaymentHandover> startNewBookingPayment({
+    required String gateway,
+    required String service,
+    required Slot slot,
+    required String patientName,
+    required num amount,
+    String? mode,
+    String? patientPhone,
+    String? notes,
+    String patientType = 'new',
+    String? sessionType,
+    String? couponCode,
+  }) async {
+    final body = _map(await _api.post('/api/payments/start', {
+      'gateway': gateway,
+      'service': service,
+      'slotId': slot.id,
+      // Required present by the route; the real date and time come off the
+      // slot document on the server.
+      'date': slot.date,
+      'time': slot.time,
+      'mode': mode ?? (slot.isOnline ? 'video' : 'in-person'),
+      'amount': amount,
+      'patientName': patientName,
+      if (patientPhone != null && patientPhone.isNotEmpty) 'patientPhone': patientPhone,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'patientType': patientType,
+      if (sessionType != null && sessionType.isNotEmpty) 'sessionType': sessionType,
+      if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+    }));
+    return PaymentHandover.fromJson(body);
+  }
+
+  /// [requestAppointment] with every field the website sends.
+  Future<Appointment> requestDoctorAssignment({
+    required String service,
+    required String patientName,
+    String? patientPhone,
+    String? preferredWhen,
+    String? notes,
+    String mode = 'video',
+    num amount = 0,
+    String patientType = 'new',
+    String? sessionType,
+    String? couponCode,
+  }) async {
+    final body = _map(await _api.post('/api/appointments', {
+      'service': service,
+      'bookingType': 'doctor-request',
+      'patientName': patientName,
+      if (patientPhone != null && patientPhone.isNotEmpty) 'patientPhone': patientPhone,
+      if (preferredWhen != null && preferredWhen.isNotEmpty) 'preferredWhen': preferredWhen,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'mode': mode,
+      'amount': amount,
+      'patientType': patientType,
+      if (sessionType != null && sessionType.isNotEmpty) 'sessionType': sessionType,
+      if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+    }));
+    final inner = body['appointment'];
+    return Appointment.fromJson(
+      inner is Map ? Map<String, dynamic>.from(inner) : body,
+    );
+  }
+
+  /// Checks a coupon code the way the website's booking page does, through
+  /// `GET /api/coupons/{code}`, and then applies the same tests the server's
+  /// own pricing will — so the patient hears "not valid for this account" now
+  /// rather than being quietly charged the full price later.
+  ///
+  /// The route answers with the whole coupon document, including the list of
+  /// email addresses a restricted code was issued to. That list is read here
+  /// only to compare against the patient's own address and is never kept:
+  /// [CouponCheck] carries the code and its discount and nothing else.
+  Future<CouponCheck> checkCoupon(String code, {String? patientEmail}) async {
+    final wanted = code.trim().toUpperCase();
+    if (wanted.isEmpty) return const CouponCheck.rejected('book.couponInvalid');
+
+    dynamic raw;
+    try {
+      raw = await _api.get('/api/coupons/${Uri.encodeComponent(wanted)}');
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return const CouponCheck.rejected('book.couponNotFound');
+      rethrow;
+    }
+
+    final body = _map(raw);
+    final doc = body['coupon'];
+    if (doc is! Map) return const CouponCheck.rejected('book.couponInvalid');
+
+    num? number(dynamic v) => v is num ? v : num.tryParse('${v ?? ''}');
+
+    // In the order the server checks them (quoteBooking, lib/pricing.ts), so
+    // the reason given here is the one the server would have given.
+    if (doc['active'] != true) return const CouponCheck.rejected('book.couponInactive');
+
+    final expiresAt = doc['expiresAt'];
+    if (expiresAt is String && expiresAt.isNotEmpty) {
+      final at = DateTime.tryParse(expiresAt);
+      if (at != null && at.isBefore(DateTime.now())) {
+        return const CouponCheck.rejected('book.couponExpired');
+      }
+    }
+
+    final maxUses = number(doc['maxUses']) ?? 0;
+    final usedCount = number(doc['usedCount']) ?? 0;
+    if (maxUses > 0 && usedCount >= maxUses) {
+      return const CouponCheck.rejected('book.couponUsedUp');
+    }
+
+    // The server no longer sends the list of patients a restricted coupon was
+    // issued to — it answers `eligible` for the signed-in caller instead.
+    if (doc['restricted'] == true && body['eligible'] != true) {
+      return const CouponCheck.rejected('book.couponNotForYou');
+    }
+
+    if (body['valid'] != true) return const CouponCheck.rejected('book.couponInvalid');
+
+    final type = doc['discountType'] == 'flat' ? 'flat' : 'percent';
+    final value = number(doc['discountValue']) ?? 0;
+    if (value <= 0) return const CouponCheck.rejected('book.couponInvalid');
+
+    return CouponCheck(
+      valid: true,
+      code: wanted,
+      discountType: type,
+      discountValue: value,
+    );
+  }
+
+  // ── Contact ───────────────────────────────────────────────────────────────
+
+  /// The website's "Send us a message" form (`POST /api/contact`). No sign-in
+  /// needed there, and none needed here.
+  ///
+  /// The route stores `email`, `name` and `message` and nothing else — it has
+  /// no phone field. A phone number the patient gives is added to the end of
+  /// the message so the clinic still sees it, rather than being sent as a
+  /// field the server would silently drop.
+  ///
+  /// `website` is the form's honeypot. It is sent empty, as a person's
+  /// browser sends it; a value there makes the server discard the message.
+  Future<void> sendContactMessage({
+    required String email,
+    required String message,
+    String? name,
+    String? phone,
+  }) async {
+    final text = message.trim();
+    final number = phone?.trim() ?? '';
+    await _api.post('/api/contact', {
+      'email': email.trim(),
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      'message': number.isEmpty ? text : '$text\n\nPhone: $number',
+      'website': '',
+    });
+  }
+
   void close() => _api.close();
 }
