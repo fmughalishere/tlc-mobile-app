@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
-import '../../core/config.dart';
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../core/session_window.dart';
@@ -16,6 +15,7 @@ import '../../widgets/common.dart';
 import 'doctor_appointment_card.dart';
 import 'follow_up_screen.dart';
 import 'prescription_screen.dart';
+import '../chat/chat_screen.dart';
 
 /// The doctor's working screen: every appointment, and everything they can do
 /// to one.
@@ -117,11 +117,12 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
           token == null || token.isEmpty ? url : '$url?t=$token',
         );
       } else if (a.mode == 'chat') {
-        // Secure chat is end-to-end encrypted in the browser with a key the
-        // server hands only to this appointment's participants. Reproducing
-        // that in the app is real work and half of it would be worse than
-        // none, so for now the doctor is sent to the same thread on the site.
-        await openUrl(context, '${AppConfig.apiBaseUrl}/doctor/appointments');
+        // The same encrypted thread the website uses — see ChatScreen.
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ChatScreen(appointment: result.appointment, asHost: true),
+          ),
+        );
       }
     });
   }

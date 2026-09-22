@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
+import '../i18n/strings.dart';
 import '../models/models.dart';
 import 'repository.dart';
 
@@ -150,6 +151,7 @@ class AppData extends ChangeNotifier {
     _notificationsLoaded = false;
     _notificationsError = null;
     _profile = null;
+    _profileError = null;
     _uid = null;
     _signInName = '';
     _signInEmail = null;
@@ -213,18 +215,33 @@ class AppData extends ChangeNotifier {
     }
   }
 
+  /// The error from the last profile fetch, or null.
+  ///
+  /// This used to be swallowed to a debugPrint, and the Profile tab's
+  /// pull-to-refresh is wired straight to this method — so on a failing
+  /// profile the patient pulled, the spinner turned, nothing changed and
+  /// nothing said why. Kept the same way as the other three lists so the
+  /// screen can render it beside whatever it already has.
+  Object? _profileError;
+  Object? get profileError => _profileError;
+
   Future<void> refreshProfile() async {
     try {
       _profile = await _repo.profile();
+      _profileError = null;
       notifyListeners();
     } on ApiException catch (error) {
       if (error.isNotFound) {
         await _healProfile();
         return;
       }
+      _profileError = error;
       debugPrint('[AppData] profile failed: $error');
+      notifyListeners();
     } catch (error) {
+      _profileError = error;
       debugPrint('[AppData] profile failed: $error');
+      notifyListeners();
     }
   }
 
@@ -247,7 +264,9 @@ class AppData extends ChangeNotifier {
     try {
       await _repo.registerProfile(
         uid: uid,
-        name: _signInName.trim().isEmpty ? 'Patient' : _signInName.trim(),
+        name: _signInName.trim().isEmpty
+            ? LocaleController.tr('profile.unnamedPatient')
+            : _signInName.trim(),
         email: _signInEmail,
         phone: _signInPhone,
       );

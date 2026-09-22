@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/apple_auth.dart';
 import '../../core/config.dart';
 import '../../core/formatting.dart';
 import '../../core/google_auth.dart';
@@ -11,6 +12,7 @@ import '../../core/session.dart';
 import '../../data/repository.dart';
 import '../../i18n/strings.dart';
 import '../../widgets/common.dart';
+import '../account/apple_sign_in_button.dart';
 import 'phone_login_screen.dart';
 import 'register_screen.dart';
 
@@ -49,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _busy = false;
   bool _google = false;
+  bool _apple = false;
   bool _obscure = true;
   String? _error;
 
@@ -175,6 +178,29 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Apple, on the sign-in screen. The same rules as Google above: a new
+  /// Apple account becomes a patient, and a cancel says nothing at all.
+  Future<void> _continueWithApple() async {
+    final l10n = context.read<LocaleController>();
+    setState(() {
+      _apple = true;
+      _error = null;
+    });
+    try {
+      final result = await signInWithApple(repository: _repo);
+      if (result.cancelled) return;
+      if (!mounted) return;
+      widget.onDone?.call();
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _error = _readable(e));
+    } catch (e) {
+      debugPrint('[login] Apple sign-in failed: $e');
+      if (mounted) setState(() => _error = l10n.t('auth.appleFailed'));
+    } finally {
+      if (mounted) setState(() => _apple = false);
+    }
+  }
+
   /// Google's own failures are terse and numeric — `PlatformException(sign_in
   /// _failed, ..., 10, null)` is the famous one, and it means exactly one
   /// thing: this build's signing fingerprint is not registered in the Firebase
@@ -273,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 20),
             RoleSwitch(
               role: _role,
-              enabled: !(_busy || _google),
+              enabled: !(_busy || _google || _apple),
               onChanged: (r) => setState(() {
                 _role = r;
                 _error = null;
@@ -317,7 +343,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
-                onPressed: (_busy || _google) ? null : _resetPassword,
+                onPressed: (_busy || _google || _apple) ? null : _resetPassword,
                 child: Text(l10n.t('auth.forgot')),
               ),
             ),
@@ -341,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: (_busy || _google) ? null : _signIn,
+                onPressed: (_busy || _google || _apple) ? null : _signIn,
                 child: _busy
                     ? const SizedBox(
                         width: 18,
@@ -359,9 +385,19 @@ class _LoginScreenState extends State<LoginScreen> {
             OrDivider(label: l10n.t('auth.or')),
             const SizedBox(height: 18),
 
+            // Apple first, on iPhone: its guidelines ask for it to be at least
+            // as prominent as any other way in.
+            if (appleSignInAvailable) ...[
+              AppleSignInButton(
+                busy: _apple,
+                onPressed: (_busy || _google) ? null : _continueWithApple,
+                label: l10n.t('auth.continueWithApple'),
+              ),
+              const SizedBox(height: 10),
+            ],
             GoogleButton(
               busy: _google,
-              onPressed: _busy ? null : _continueWithGoogle,
+              onPressed: (_busy || _apple) ? null : _continueWithGoogle,
               label: l10n.t('auth.continueWithGoogle'),
             ),
 
@@ -369,7 +405,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: (_busy || _google)
+                onPressed: (_busy || _google || _apple)
                     ? null
                     : () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -390,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: const TextStyle(fontSize: 13, color: Palette.inkSoft),
                 ),
                 TextButton(
-                  onPressed: (_busy || _google)
+                  onPressed: (_busy || _google || _apple)
                       ? null
                       : () => Navigator.of(context).push(
                             MaterialPageRoute<void>(

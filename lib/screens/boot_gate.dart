@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/deep_links.dart';
 import '../core/email_verification.dart';
 import '../core/palette.dart';
 import '../core/push.dart';
@@ -51,6 +52,11 @@ class _BootGateState extends State<BootGate> with WidgetsBindingObserver {
   /// one of those would otherwise be a fresh round of requests.
   String? _loadedForUid;
 
+  /// https://tlcmedclinics.com/patient/book/result links — the patient coming
+  /// back from paying by card in the browser. Started here, once, because this
+  /// is the widget that owns the reload they trigger.
+  late final DeepLinks _deepLinks = DeepLinks(onPaymentReturn: _refreshSignedIn);
+
   @override
   void initState() {
     super.initState();
@@ -58,13 +64,27 @@ class _BootGateState extends State<BootGate> with WidgetsBindingObserver {
     _timer = Timer(_minimum, () {
       if (mounted) setState(() => _minimumElapsed = true);
     });
+    _deepLinks.start();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    unawaited(_deepLinks.dispose());
     super.dispose();
+  }
+
+  /// The same reload the app does on returning to the foreground. Before
+  /// anyone is signed in there is nothing to reload — and the first load after
+  /// sign-in fetches the appointments anyway.
+  Future<void> _refreshSignedIn() async {
+    if (!mounted || _loadedForUid == null) return;
+    final data = context.read<AppData>();
+    await Future.wait([
+      data.refreshAppointments(),
+      data.refreshNotifications(),
+    ]);
   }
 
   /// Reloads whenever the app comes back to the front.

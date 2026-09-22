@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The brand green (Palette.indigo in lib/core/palette.dart, the CSS
+         variable "indigo" on the website). Android tints the notification icon and app name with
+         it in the expanded notification shade. -->
+    <color name="notification_color">#FF238055</color>
+</resources>

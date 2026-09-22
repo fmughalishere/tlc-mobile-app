@@ -1,7 +1,10 @@
 name: tlc_med_clinics
 description: "TLC Med Clinics — appointments, telemedicine and skin care, for patients, doctors and staff."
 publish_to: "none"
-version: 0.1.0+1
+# 1.0.0 because this is what the stores will show. versionCode is burned
+# permanently at the first upload and versionName is what a patient reads on
+# the listing for a paid medical service; "0.1.0" reads as an unfinished app.
+version: 1.0.0+1
 
 environment:
   sdk: ^3.9.2
@@ -55,6 +58,19 @@ dependencies:
   # The video consultation. The WebView is the first implementation, not the
   # last one — see the notes when we get to stage 5.
   webview_flutter: ^4.10.0
+
+  # "Sign in with Apple". App Store Review Guideline 4.8: an app that offers
+  # Google sign-in must offer this too, or it is rejected. Shown on iOS only.
+  sign_in_with_apple: ^6.1.3
+
+  # Opens the app from a https://tlcmedclinics.com link — used to bring the
+  # patient back after paying by card in the phone's browser.
+  app_links: ^6.3.2
+
+  # AES-GCM for the doctor–patient chat. Messages are stored encrypted in
+  # Firestore, exactly as the website stores them; this decrypts them with the
+  # per-thread key the server hands out.
+  cryptography: ^2.7.0
 
 dev_dependencies:
   flutter_test:

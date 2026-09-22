@@ -1,13 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/apple_auth.dart';
+import '../../core/config.dart';
 import '../../core/formatting.dart';
 import '../../core/google_auth.dart';
 import '../../core/palette.dart';
 import '../../data/repository.dart';
 import '../../i18n/strings.dart';
 import '../../widgets/common.dart';
+import '../account/apple_sign_in_button.dart';
 
 /// Creating an account — as a patient, or as a doctor asking to join.
 ///
@@ -58,11 +62,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   AccountRole _role = AccountRole.patient;
   bool _busy = false;
   bool _google = false;
+  bool _apple = false;
   bool _obscure = true;
   bool _obscureConfirm = true;
   String? _error;
 
   bool get _isDoctor => _role == AccountRole.doctor;
+
+  // The two tappable phrases under the button. Recognisers hold a callback
+  // and must be disposed, so they live on the state rather than in `build`.
+  late final TapGestureRecognizer _termsTap = TapGestureRecognizer()
+    ..onTap = () => openUrl(context, '${AppConfig.apiBaseUrl}/terms');
+  late final TapGestureRecognizer _privacyTap = TapGestureRecognizer()
+    ..onTap = () => openUrl(context, '${AppConfig.apiBaseUrl}/privacy');
 
   @override
   void dispose() {
@@ -72,6 +84,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _password.dispose();
     _confirm.dispose();
     _specialization.dispose();
+    _termsTap.dispose();
+    _privacyTap.dispose();
     _repo.close();
     super.dispose();
   }
@@ -213,6 +227,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// The same account, made with Apple. Like Google, the role switch applies:
+  /// with "I'm a doctor" selected this files the same application.
+  Future<void> _continueWithApple() async {
+    final l10n = context.read<LocaleController>();
+    setState(() {
+      _apple = true;
+      _error = null;
+    });
+    try {
+      final result = await signInWithApple(
+        repository: _repo,
+        role: _isDoctor ? 'doctor' : 'patient',
+        specialization: _specialization.text,
+      );
+      if (result.cancelled) return;
+      if (!mounted) return;
+      if (result.doctorPending) showToast(context, l10n.t('auth.doctorPending'));
+      widget.onDone?.call();
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _error = _readable(e));
+    } catch (e) {
+      debugPrint('[register] Apple sign-in failed: $e');
+      if (mounted) setState(() => _error = l10n.t('auth.appleFailed'));
+    } finally {
+      if (mounted) setState(() => _apple = false);
+    }
+  }
+
   /// Google's own failures are terse and numeric. `sign_in_failed … 10` is the
   /// famous one and it means exactly one thing: this build's signing
   /// fingerprint is not registered in the Firebase project. Saying that
@@ -248,7 +290,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final working = _busy || _google;
+    final working = _busy || _google || _apple;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.t('auth.createAccount'))),
@@ -436,13 +478,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
 
+            // What they are agreeing to, reachable before they agree to it.
+            const SizedBox(height: 12),
+            Text.rich(
+              TextSpan(
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Palette.inkSoft,
+                  height: 1.5,
+                ),
+                children: [
+                  TextSpan(text: l10n.t('auth.agreePrefix')),
+                  TextSpan(
+                    text: l10n.t('legal.terms'),
+                    recognizer: _termsTap,
+                    style: const TextStyle(
+                      color: Palette.indigo,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  TextSpan(text: l10n.t('auth.agreeAnd')),
+                  TextSpan(
+                    text: l10n.t('legal.privacy'),
+                    recognizer: _privacyTap,
+                    style: const TextStyle(
+                      color: Palette.indigo,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  TextSpan(text: l10n.t('auth.agreeSuffix')),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+
             const SizedBox(height: 18),
             OrDivider(label: l10n.t('auth.or')),
             const SizedBox(height: 18),
 
+            // Apple first, on iPhone: its guidelines ask for it to be at least
+            // as prominent as any other way in.
+            if (appleSignInAvailable) ...[
+              AppleSignInButton(
+                busy: _apple,
+                onPressed: (_busy || _google) ? null : _continueWithApple,
+                label: l10n.t('auth.continueWithApple'),
+              ),
+              const SizedBox(height: 10),
+            ],
             GoogleButton(
               busy: _google,
-              onPressed: _busy ? null : _continueWithGoogle,
+              onPressed: (_busy || _apple) ? null : _continueWithGoogle,
               label: l10n.t('auth.continueWithGoogle'),
             ),
 

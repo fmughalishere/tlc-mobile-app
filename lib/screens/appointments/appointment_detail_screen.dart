@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
+import '../../data/chat_repository.dart';
 import '../../data/repository.dart';
+import '../../i18n/chat_strings.dart';
 import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../booking/pay_appointment_sheet.dart';
+import '../chat/chat_screen.dart';
 import 'rate_visit_screen.dart';
 
 /// One appointment, everything about it, and the two things a patient can do
@@ -122,13 +125,23 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       final token = result.joinToken;
       await openUrl(
         context,
-        token == null || token.isEmpty ? url : '\$url?t=\$token',
+        token == null || token.isEmpty ? url : '$url?t=$token',
       );
     } catch (e) {
       if (mounted) showToast(context, errorText(e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Opens the encrypted chat with the doctor. The chat screen starts the
+  /// session itself, as the website's "Open chat" button does.
+  Future<void> _openChat() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatScreen(appointment: _appointment),
+      ),
+    );
   }
 
   Future<void> _payNow() async {
@@ -185,6 +198,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final canJoin = a.roomUrl != null &&
         a.roomUrl!.isNotEmpty &&
         a.sessionStatus == 'live';
+
+    // Chat follows the website: only on a chat consultation with a doctor,
+    // and only inside the session window. Outside it the button stays, greyed,
+    // with the reason underneath, so the patient knows when it will open.
+    final showChat = ChatAccess.isChatAppointment(a);
+    final chatClosedReason = showChat ? ChatAccess.closedReason(a, asHost: false) : null;
 
     final canCancel = a.status == 'pending' ||
         a.status == 'confirmed' ||
@@ -375,8 +394,28 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
               ),
             ),
 
-          if (a.canBeRated) ...[
+          if (showChat) ...[
             if (canJoin) const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _busy || chatClosedReason != null ? null : _openChat,
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19),
+                label: Text(ChatStrings.t('chat.messageDoctor')),
+              ),
+            ),
+            if (chatClosedReason != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                chatClosedReason,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Palette.inkSoft),
+              ),
+            ],
+          ],
+
+          if (a.canBeRated) ...[
+            if (canJoin || showChat) const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(

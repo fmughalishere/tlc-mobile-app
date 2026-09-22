@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,26 @@ import 'i18n/strings.dart';
 /// Firebase failing to start is treated as a showable state rather than a
 /// crash: a patient on a bad connection in a waiting room should be told what
 /// happened and offered the clinic's phone number, not shown a grey screen.
+/// Runs when a push arrives and the app is backgrounded or killed.
+///
+/// Without it, Android drops every **data-only** FCM message — one with no
+/// `notification` block — on the floor before Dart ever sees it. That is
+/// exactly the shape of the "your doctor has started the session early" alert,
+/// and the one time it matters most is the time the app is not open.
+///
+/// It runs in its own isolate with none of the app's state, so it may not
+/// touch AppData, Session or the widget tree. All it does is give the isolate
+/// a Firebase app so the SDK can hand the message on; the notification itself
+/// is drawn by the system, and the tap is handled by
+/// `FirebaseMessaging.onMessageOpenedApp` back in the main isolate.
+///
+/// `@pragma('vm:entry-point')` is not optional — release builds tree-shake a
+/// top-level function nothing calls, and nothing in Dart calls this one.
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -50,6 +71,11 @@ Future<void> main() async {
     runApp(StartupFailureApp(locale: locale, error: startupError));
     return;
   }
+
+  // Registered before the first frame and outside the try above: it must be
+  // set while the app is starting, not when a notification screen is built,
+  // because by then the message has already been dropped.
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   final data = AppData();
   // Not awaited on purpose. The splash is about to be on screen for a moment

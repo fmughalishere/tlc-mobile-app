@@ -102,14 +102,23 @@ class _BookScreenState extends State<BookScreen> {
   /// deliberately silent on failure: this list decides whether an extra option
   /// is offered, and a clinic that cannot be asked simply offers the phone
   /// call — which is exactly what it did before any of this existed.
+  /// True once the patient has answered the pay-now question themselves.
+  /// See [_loadMethods].
+  bool _payNowTouched = false;
+
   Future<void> _loadMethods() async {
     try {
       final methods = await _repo.paymentMethods();
       if (!mounted || methods.isEmpty) return;
       setState(() {
         _methods = methods;
-        _gateway = methods.first.id;
-        _payNow = true;
+        _gateway ??= methods.first.id;
+        // Only a default, never an override. This request is not awaited, so
+        // it can land after the patient has already reached step 4 and chosen
+        // "pay when the clinic calls" — and it used to flip that answer back
+        // to "pay now", which then opened a gateway for somebody who had asked
+        // not to be sent to one.
+        if (!_payNowTouched) _payNow = true;
       });
     } catch (_) {
       // Nothing to say and nothing to retry. See above.
@@ -445,6 +454,7 @@ class _BookScreenState extends State<BookScreen> {
           gateway: _gateway,
           onPayNowChanged: (value) => setState(() {
             _payNow = value;
+            _payNowTouched = true;
             _error = null;
           }),
           onGatewayChanged: (id) => setState(() => _gateway = id),

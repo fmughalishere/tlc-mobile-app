@@ -4,9 +4,11 @@
          phone unless it is also declared here. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- Lets the app tell "no connection" apart from "the server is down",
-         which is the difference between a useful message and a useless one. -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- ACCESS_NETWORK_STATE is deliberately not declared here. Nothing in the
+         app's own code reads the network state (there is no connectivity
+         package), and the Firebase libraries that do need it declare it in
+         their own manifests, which Gradle merges in. Declaring it here as well
+         only claimed a use the app does not make. -->
 
     <!-- Appointment reminders. Android 13+ will not show a notification without
          it, and the runtime prompt is only offered if it is declared. -->
@@ -15,7 +17,10 @@
     <application
         android:label="TLC Med Clinics"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,6 +42,35 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Back into the app after paying by card in the phone's browser.
+
+                 The gateway returns the patient to
+                 https://tlcmedclinics.com/patient/book/result?status=...
+                 With autoVerify, and assetlinks.json served from
+                 https://tlcmedclinics.com/.well-known/, Android opens that
+                 address in this app instead of leaving the patient on a web
+                 page. lib/core/deep_links.dart handles it. Only this one path
+                 is claimed: every other clinic link keeps opening in the
+                 browser. If verification fails (wrong fingerprint in
+                 assetlinks.json), Android simply keeps opening the browser. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="tlcmedclinics.com"/>
+                <data android:host="www.tlcmedclinics.com"/>
+                <data android:pathPrefix="/patient/book/result"/>
+            </intent-filter>
+
+            <!-- Off: the link is handled by app_links in Dart. The app has no
+                 route table (MaterialApp home: only), so Flutter's built-in
+                 deep linking would try to push a route named
+                 "/patient/book/result?..." that does not exist. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
         </activity>
         <!-- The channel appointment notifications arrive on.
              Since Android 8 every notification belongs to a channel, and one
@@ -49,6 +83,17 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="tlc_appointments" />
+
+        <!-- The status-bar icon for notifications Firebase draws itself (app
+             in the background or closed). Without it Firebase falls back to
+             the full-colour launcher icon, which Android reduces to a white
+             square. The colour tints it in the notification shade. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -81,5 +126,11 @@
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="sms" />
+        </intent>
+        <!-- WhatsApp is opened as https://wa.me/..., which the https entry
+             above already covers. -->
     </queries>
 </manifest>

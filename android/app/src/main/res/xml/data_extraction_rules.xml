@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What Android is allowed to copy off this phone.
+
+    `android:allowBackup` defaults to true, which means the app's private
+    storage — the saved Firebase Auth credential and the shared_preferences
+    file — is included in Google's cloud backup and in device-to-device
+    transfer. For an app whose local state authorises /api/appointments and
+    /api/profile for a named patient at a mental-health clinic, that is a copy
+    of someone's medical relationship sitting somewhere nobody decided to put
+    it, and it is a disclosure the Play Data-safety form would then owe.
+
+    Nothing here is worth backing up in any case: the appointments live on the
+    server, and a patient reinstalling the app signs in again in ten seconds.
+
+    Android 12 and newer read this file; older versions read
+    `android:allowBackup="false"`, which is why both are set.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+    </device-transfer>
+</data-extraction-rules>

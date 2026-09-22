@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../i18n/strings.dart';
 
 import '../data/repository.dart';
+import 'account_setup.dart';
 
 /// "Continue with Google", shared by the sign-in and the create-account
 /// screens.
@@ -25,25 +25,11 @@ import '../data/repository.dart';
 /// `POST /api/auth/register` **overwrites** the document rather than merging
 /// into it, so calling it for somebody who already exists would erase their
 /// role, their approval and the date they joined.
-class GoogleAuthResult {
-  const GoogleAuthResult({
-    required this.cancelled,
-    this.createdAccount = false,
-    this.doctorPending = false,
-  });
-
-  /// The person closed the Google sheet. Not an error, and nothing should be
-  /// shown for it — they simply changed their mind.
-  final bool cancelled;
-
-  /// A profile document was written for the first time.
-  final bool createdAccount;
-
-  /// They asked to join as a doctor, and that request is now waiting for an
-  /// admin. The screen says so; there is nothing useful behind the dashboard
-  /// until somebody approves it.
-  final bool doctorPending;
-}
+///
+/// Kept as a name so older call sites read the same. The result, and the
+/// whole post-sign-in step, is shared with "Sign in with Apple" — see
+/// core/account_setup.dart.
+typedef GoogleAuthResult = SocialAuthResult;
 
 /// Signs in with Google and makes sure a profile exists behind it.
 ///
@@ -61,7 +47,7 @@ Future<GoogleAuthResult> signInWithGoogle({
 
   final account = await google.signIn();
   if (account == null) {
-    return const GoogleAuthResult(cancelled: true);
+    return const SocialAuthResult(cancelled: true);
   }
 
   final auth = await account.authentication;
@@ -79,46 +65,13 @@ Future<GoogleAuthResult> signInWithGoogle({
     );
   }
 
-  // Does this person already exist here?
-  var exists = false;
-  try {
-    final snap =
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    exists = snap.exists;
-  } catch (error) {
-    // The read failed — offline, or rules refused it. Assume they exist and do
-    // nothing: not writing a profile leaves an account that can be repaired on
-    // the next launch, whereas writing one over a doctor's record cannot be
-    // undone.
-    debugPrint('[google] profile check failed: $error');
-    exists = true;
-  }
-
-  if (exists) {
-    return const GoogleAuthResult(cancelled: false);
-  }
-
-  final pending = await repository.registerProfile(
-    uid: user.uid,
-    name: (user.displayName ?? '').trim().isEmpty
-        ? (account.email.split('@').first)
-        : user.displayName!.trim(),
+  return ensureProfileAfterSignIn(
+    repository: repository,
+    user: user,
+    name: user.displayName,
     email: user.email ?? account.email,
-    phone: user.phoneNumber,
     role: role,
     specialization: specialization,
-  );
-
-  // The token in hand was minted a second ago, before the role claim existed.
-  // Without forcing a refresh the very next API call goes out claim-less and
-  // comes back 403 — which looks, from the outside, exactly like a broken
-  // sign-in.
-  await user.getIdToken(true);
-
-  return GoogleAuthResult(
-    cancelled: false,
-    createdAccount: true,
-    doctorPending: pending,
   );
 }
 

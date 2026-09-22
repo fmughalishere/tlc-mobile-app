@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The small icon in the status bar and on the notification itself.
+
+    Android draws this icon from its alpha channel only: every opaque pixel
+    becomes white (or the accent colour below), everything else is see-through.
+    The full-colour launcher icon has no transparent areas, which is why it used
+    to arrive as a plain white square. A flat shape on transparent is the only
+    thing that survives that treatment, so this is a single medical cross.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9,3h6v6h6v6h-6v6h-6v-6h-6v-6h6z" />
+</vector>

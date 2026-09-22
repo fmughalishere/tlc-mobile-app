@@ -175,8 +175,33 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (handover.kind == 'form' && (handover.action ?? '').isNotEmpty) {
       _controller!.loadHtmlString(_formShell(handover), baseUrl: AppConfig.apiBaseUrl);
     } else if ((handover.url ?? '').isNotEmpty) {
-      _controller!.loadRequest(Uri.parse(handover.url!));
+      // tryParse, not parse: a malformed URL from the gateway used to throw
+      // out of initState, which Flutter reports as a red screen rather than as
+      // "we could not open the payment page".
+      final target = Uri.tryParse(handover.url!);
+      if (target == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          showToast(context, LocaleController.tr('pay.browserUnavailable'),
+              error: true);
+          Navigator.of(context).pop(false);
+        });
+        return;
+      }
+      _controller!.loadRequest(target);
     }
+  }
+
+  @override
+  void dispose() {
+    // webview_flutter 4.x has no WebViewController.dispose(). The platform
+    // view keeps running the gateway's JavaScript — timers, polling — until it
+    // is collected, and the NavigationDelegate's closures hold this State
+    // alive while it does. Pointing it at a blank page and dropping the
+    // delegate ends both.
+    _controller?.setNavigationDelegate(NavigationDelegate());
+    _controller?.loadRequest(Uri.parse('about:blank'));
+    super.dispose();
   }
 
   /// The wallets only document an HTML form post, so the app builds the one
@@ -193,12 +218,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
         .join('\n');
     return '''
 <!doctype html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="${LocaleController.urdu ? 'ur' : 'en'}" dir="${LocaleController.urdu ? 'rtl' : 'ltr'}">
+<head><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{font:15px system-ui;display:flex;align-items:center;justify-content:center;
 height:100vh;margin:0;color:#5b6670}</style></head>
 <body onload="document.forms[0].submit()">
 <form method="POST" action="${_esc(handover.action!)}">$inputs</form>
-<p>Taking you to the payment page…</p>
+<p>${_esc(LocaleController.tr('pay.openingGateway'))}</p>
 </body></html>''';
   }
 
@@ -215,8 +241,16 @@ height:100vh;margin:0;color:#5b6670}</style></head>
     // The origin is checked, not just the path. Without this, a gateway page
     // that happened to link somewhere ending in the same path could close the
     // screen with a "paid" the clinic never said.
+    //
+    // Fail closed. This used to read `expected != null && uri.host.isNotEmpty
+    // && ...`, which meant a URL that parsed with no host at all — or over
+    // plain http — skipped the check entirely and was accepted as the clinic's
+    // own result page, `status=ok` included.
     final expected = Uri.tryParse(AppConfig.apiBaseUrl);
-    if (expected != null && uri.host.isNotEmpty && uri.host != expected.host) {
+    if (expected == null ||
+        uri.host.isEmpty ||
+        uri.host != expected.host ||
+        uri.scheme != expected.scheme) {
       return false;
     }
 

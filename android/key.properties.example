@@ -1,0 +1,26 @@
+# Copy this file to android/key.properties and fill it in. Never commit the
+# real one — add `android/key.properties` and `*.jks` to .gitignore first.
+#
+# Make the key once, and keep it somewhere you will still have it in five
+# years. It is the only key that can ever publish an update to this app: lose
+# it and the Play listing cannot be updated at all, and the app has to be
+# republished under a new package name with every install lost.
+#
+#   keytool -genkey -v -keystore tlc-upload-keystore.jks \
+#           -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Then, before the first Google sign-in test on a release build, add BOTH
+# SHA-1 fingerprints to the Firebase Android app (com.tlcmedclinics.tlc_med_clinics)
+# and re-download google-services.json:
+#
+#   1. this keystore's        keytool -list -v -keystore tlc-upload-keystore.jks -alias upload
+#   2. Play App Signing's     Play Console → Setup → App signing
+#
+# The second one is the one real installs are signed with. Skipping it is how
+# Google sign-in works perfectly in internal testing and fails with
+# PlatformException(sign_in_failed, …, 10) for every patient who downloads it.
+
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=upload
+storeFile=C:\\keys\\tlc-upload-keystore.jks

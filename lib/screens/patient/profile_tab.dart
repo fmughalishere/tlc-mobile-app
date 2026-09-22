@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../core/config.dart';
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
+import '../../core/push.dart';
 import '../../core/session.dart';
 import '../../data/app_data.dart';
 import '../../i18n/strings.dart';
 import '../../widgets/common.dart';
+import '../account/delete_account.dart';
 import '../diagnostics_screen.dart';
 
 /// The account, its settings, and the way out.
@@ -138,6 +140,10 @@ class _ProfileTabState extends State<ProfileTab> {
         .read<AppData>()
         .saveProfile({'locale': urdu ? 'ur' : 'en'})
         .catchError((Object _) {});
+
+    // And onto this phone's push registration, so lock-screen notifications
+    // switch language too. Same rule: fire and forget.
+    pushService.refreshLocale().catchError((Object _) {});
   }
 
   Future<void> _signOut() async {
@@ -190,6 +196,8 @@ class _ProfileTabState extends State<ProfileTab> {
     // than an error page in front of the sign-out button.
     final name = profile?.name ?? session.name;
     final isDoctor = profile?.isDoctor ?? (session.role == Role.doctor);
+    // Only a patient can close their own account; the server refuses staff.
+    final isPatient = session.role == Role.patient;
 
     return Scaffold(
       appBar: AppBar(
@@ -214,6 +222,26 @@ class _ProfileTabState extends State<ProfileTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
+            // A failed profile fetch used to be invisible: the pull-to-refresh
+            // above is wired to `refreshProfile`, so the patient pulled, the
+            // spinner turned, and every row stayed blank with nothing saying
+            // why. Shown above the rows rather than replacing them, because
+            // Sign out is on this screen and must stay reachable.
+            if (data.profileError != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Palette.dangerSoft,
+                  borderRadius: BorderRadius.circular(Palette.radiusCard),
+                ),
+                child: Text(
+                  errorText(data.profileError!),
+                  style: const TextStyle(fontSize: 13, color: Palette.danger),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             // The whole header is the button, not just the pencil. A 20-pixel
             // icon is a hard target on a phone, and "tap your name to change
             // it" is what people try first anyway.
@@ -424,6 +452,31 @@ class _ProfileTabState extends State<ProfileTab> {
               onTap: () => openUrl(context, AppConfig.apiBaseUrl),
             ),
 
+            // ── Legal ──
+            // Reachable from inside the app, not only from the website: a
+            // health app has to let people read what it does with their data
+            // without leaving to go and find it.
+            const SizedBox(height: 26),
+            SectionHeader(title: l10n.t('legal.title')),
+            _Row(
+              icon: Icons.privacy_tip_outlined,
+              label: l10n.t('legal.privacy'),
+              value: '',
+              onTap: () => openUrl(context, '${AppConfig.apiBaseUrl}/privacy'),
+            ),
+            _Row(
+              icon: Icons.description_outlined,
+              label: l10n.t('legal.terms'),
+              value: '',
+              onTap: () => openUrl(context, '${AppConfig.apiBaseUrl}/terms'),
+            ),
+            _Row(
+              icon: Icons.receipt_long_outlined,
+              label: l10n.t('legal.refund'),
+              value: '',
+              onTap: () => openUrl(context, '${AppConfig.apiBaseUrl}/refund-policy'),
+            ),
+
             // Debug builds only. It is a developer's tool — useful while the
             // app is being built and tested, and clutter on a patient's phone
             // once it ships. `kDebugMode` is a compile-time constant, so in a
@@ -452,6 +505,28 @@ class _ProfileTabState extends State<ProfileTab> {
                 label: Text(l10n.t('auth.signOut')),
               ),
             ),
+
+            // Below Sign out and set apart from it, so the everyday button is
+            // the one under the thumb and this one has to be looked for.
+            const SizedBox(height: 18),
+            if (isPatient)
+              Center(
+                child: TextButton.icon(
+                  onPressed: _saving ? null : () => confirmAndDeleteAccount(context),
+                  style: TextButton.styleFrom(foregroundColor: Palette.crimsonDeep),
+                  icon: const Icon(Icons.delete_forever_outlined, size: 19),
+                  label: Text(l10n.t('account.delete')),
+                ),
+              )
+            else if (session.role == Role.doctor || session.role == Role.admin)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  l10n.t('account.staffDelete'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 11.5, color: Palette.inkSoft, height: 1.5),
+                ),
+              ),
           ],
         ),
       ),

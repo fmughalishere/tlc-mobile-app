@@ -247,6 +247,7 @@ class Strings {
     'pay.keepPaying': 'Stay here',
     'pay.openingBrowser':
         'Opening the payment page in your browser…',
+    'pay.openingGateway': 'Taking you to the payment page…',
     'appt.joinNotReady':
         'The session room is not open yet. Please try again in a moment.',
     'pay.leave': 'Leave',
@@ -299,6 +300,7 @@ class Strings {
 
     'profile.title': 'Profile',
     'profile.editName': 'Name',
+    'profile.unnamedPatient': 'Patient',
     'profile.language': 'Language',
     'profile.contact': 'Contact the clinic',
     'profile.saved': 'Saved.',
@@ -598,6 +600,37 @@ class Strings {
     'adm.svc.needNameCategory': 'A service needs a name and a category.',
     'adm.svc.saved': 'Saved.',
 
+    'auth.continueWithApple': 'Sign in with Apple',
+    'auth.appleFailed': "Couldn't sign in with Apple. Please try again.",
+    'auth.agreePrefix': 'By creating an account you agree to the ',
+    'auth.agreeAnd': ' and ',
+    'auth.agreeSuffix': '.',
+
+    'legal.title': 'Legal',
+    'legal.privacy': 'Privacy Policy',
+    'legal.terms': 'Terms of Service',
+    'legal.refund': 'Refund Policy',
+
+    'account.delete': 'Delete account',
+    'account.staffDelete':
+        'Doctor and admin accounts are closed by the clinic. To close yours, please contact the clinic.',
+    'account.deleteTitle': 'Delete your account?',
+    'account.deleteIntro': 'This is what happens:',
+    'account.deleteUpcoming':
+        'Your upcoming appointments are cancelled and their times given back to the clinic. Anything already paid is not refunded automatically — if you are owed a refund, contact the clinic first.',
+    'account.deleteLogin':
+        'Your sign-in is removed, and your name, email, phone and photo are taken off your profile.',
+    'account.deleteNotifications': 'This phone stops receiving notifications from the clinic.',
+    'account.deleteRecords':
+        'Your past visits, prescriptions and payments are kept by the clinic, as it must keep medical records, but without your name or phone number on them.',
+    'account.deleteFinal': 'This cannot be undone.',
+    'account.deleteTypePrompt': 'To confirm, type {word} below.',
+    'account.deleteWord': 'DELETE',
+    'account.deleteForever': 'Delete for good',
+    'account.deleting': 'Deleting your account…',
+    'account.deleteFailed': 'Your account was not deleted, and you are still signed in.',
+    'account.deleted': 'Your account has been deleted.',
+
     'lang.english': 'English',
     'lang.urdu': 'اردو',
   };
@@ -824,6 +857,7 @@ class Strings {
     'pay.keepPaying': 'یہیں رہیں',
     'pay.openingBrowser':
         'ادائیگی کا صفحہ آپ کے براؤزر میں کھولا جا رہا ہے…',
+    'pay.openingGateway': 'آپ کو ادائیگی کے صفحے پر لے جایا جا رہا ہے…',
     'appt.joinNotReady':
         'سیشن کا کمرہ ابھی نہیں کھلا۔ ایک لمحے بعد دوبارہ کوشش کریں۔',
     'pay.leave': 'واپس جائیں',
@@ -876,6 +910,7 @@ class Strings {
 
     'profile.title': 'پروفائل',
     'profile.editName': 'نام',
+    'profile.unnamedPatient': 'مریض',
     'profile.language': 'زبان',
     'profile.contact': 'کلینک سے رابطہ',
     'profile.saved': 'محفوظ ہو گیا۔',
@@ -1172,6 +1207,37 @@ class Strings {
     'adm.svc.imageHelp': 'Cloudinary کا URL، ویب سائٹ سے اپلوڈ کیا ہوا۔',
     'adm.svc.needNameCategory': 'خدمت کے لیے نام اور زمرہ دونوں چاہئیں۔',
     'adm.svc.saved': 'محفوظ ہو گیا۔',
+
+    'auth.continueWithApple': 'Apple سے سائن اِن کریں',
+    'auth.appleFailed': 'Apple سے سائن اِن نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
+    'auth.agreePrefix': 'اکاؤنٹ بنا کر آپ ہماری ',
+    'auth.agreeAnd': ' اور ',
+    'auth.agreeSuffix': ' سے اتفاق کرتے ہیں۔',
+
+    'legal.title': 'قانونی معلومات',
+    'legal.privacy': 'پرائیویسی پالیسی',
+    'legal.terms': 'شرائطِ استعمال',
+    'legal.refund': 'رقم واپسی کی پالیسی',
+
+    'account.delete': 'اکاؤنٹ ختم کریں',
+    'account.staffDelete':
+        'ڈاکٹر اور ایڈمن کے اکاؤنٹ کلینک بند کرتا ہے۔ اپنا اکاؤنٹ بند کروانے کے لیے براہِ کرم کلینک سے رابطہ کریں۔',
+    'account.deleteTitle': 'اپنا اکاؤنٹ ختم کر دیں؟',
+    'account.deleteIntro': 'ایسا کرنے سے:',
+    'account.deleteUpcoming':
+        'آپ کی آنے والی اپائنٹمنٹس منسوخ ہو جائیں گی اور ان کا وقت کلینک کو واپس مل جائے گا۔ جو رقم پہلے ادا ہو چکی ہے وہ خود بخود واپس نہیں ہو گی — اگر آپ کو رقم واپس ملنی ہے تو پہلے کلینک سے رابطہ کریں۔',
+    'account.deleteLogin':
+        'آپ کا سائن اِن ختم ہو جائے گا، اور آپ کا نام، ای میل، فون اور تصویر پروفائل سے ہٹا دیے جائیں گے۔',
+    'account.deleteNotifications': 'اس فون پر کلینک کی اطلاعات آنا بند ہو جائیں گی۔',
+    'account.deleteRecords':
+        'آپ کے پچھلے معائنے، نسخے اور ادائیگیاں کلینک کے پاس رہیں گی، کیونکہ طبی ریکارڈ رکھنا ضروری ہے، مگر ان پر آپ کا نام یا فون نمبر نہیں ہو گا۔',
+    'account.deleteFinal': 'یہ عمل واپس نہیں ہو سکتا۔',
+    'account.deleteTypePrompt': 'تصدیق کے لیے نیچے {word} لکھیں۔',
+    'account.deleteWord': 'حذف',
+    'account.deleteForever': 'ہمیشہ کے لیے ختم کریں',
+    'account.deleting': 'آپ کا اکاؤنٹ ختم کیا جا رہا ہے…',
+    'account.deleteFailed': 'آپ کا اکاؤنٹ ختم نہیں ہوا، اور آپ ابھی بھی سائن اِن ہیں۔',
+    'account.deleted': 'آپ کا اکاؤنٹ ختم کر دیا گیا ہے۔',
 
     'lang.english': 'English',
     'lang.urdu': 'اردو',

@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import '../data/repository.dart';
+import '../i18n/strings.dart';
 
 /// Notifications that reach the phone, not just the bell inside the app.
 ///
@@ -172,6 +173,7 @@ class PushService {
       await _repo.registerPushToken(
         token,
         platform: Platform.isIOS ? 'ios' : 'android',
+        locale: LocaleController.urdu ? 'ur' : 'en',
       );
       debugPrint('[push] registered with the server');
     } catch (error) {
@@ -179,12 +181,30 @@ class PushService {
     }
   }
 
+  /// Re-sends this phone's token with the current language, so the next
+  /// lock-screen notification is written in it. Called when the patient
+  /// switches language; a no-op before sign-in.
+  Future<void> refreshLocale() async {
+    final token = _token;
+    if (token == null) return;
+    await _register(token);
+  }
+
   void _onForegroundMessage(RemoteMessage message) {
     onRefresh?.call();
 
+    // The server sends both languages in `data`, so the in-app banner follows
+    // the app's own language even if the token was registered in the other.
     final notification = message.notification;
-    final title = notification?.title?.trim() ?? '';
-    final body = notification?.body?.trim() ?? '';
+    final urdu = LocaleController.urdu;
+    String pickData(String en, String ur) {
+      final value = (message.data[urdu ? ur : en] ?? '').toString().trim();
+      return value;
+    }
+    final dataTitle = pickData('title', 'titleUr');
+    final dataBody = pickData('body', 'bodyUr');
+    final title = dataTitle.isNotEmpty ? dataTitle : (notification?.title?.trim() ?? '');
+    final body = dataBody.isNotEmpty ? dataBody : (notification?.body?.trim() ?? '');
     if (title.isEmpty && body.isEmpty) return;
 
     final messenger = scaffoldMessengerKey.currentState;

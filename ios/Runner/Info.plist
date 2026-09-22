@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Tlc Med Clinics</string>
+	<string>TLC Med Clinics</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -41,22 +41,26 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- ── Permissions the video consultation needs ──────────────────────
+	<!-- NSCameraUsageDescription and NSMicrophoneUsageDescription are
+	     deliberately absent.
 
-	     iOS refuses camera and microphone access outright unless the app says,
-	     in its own words, what it wants them for — and it does not fail with an
-	     error. The prompt simply never appears and the call sits there with no
-	     picture, which looks like a broken app rather than a missing key. App
-	     Review rejects a build without them as well.
+	     The video consultation opens in the phone's browser (url_launcher,
+	     LaunchMode.externalApplication), and the browser asks for the camera
+	     and microphone under its own name. The app itself never touches
+	     either: no camera or image_picker package, and the only WebView (the
+	     wallet payment page) makes no media request. A purpose string for a
+	     capability the app never uses is what App Review asks to have
+	     demonstrated. Put them back if the call ever moves inside the app. -->
+	<!-- NSPhotoLibraryUsageDescription is deliberately absent.
 
-	     These are shown to the patient verbatim, so they are written for a
-	     patient rather than for a developer. -->
-	<key>NSCameraUsageDescription</key>
-	<string>TLC Med Clinics needs your camera so your doctor can see you during a video consultation.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>TLC Med Clinics needs your microphone so your doctor can hear you during a consultation.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>TLC Med Clinics needs access to your photos so you can attach a prescription or report to your appointment.</string>
+	     It used to be here, promising that a patient could "attach a
+	     prescription or report to your appointment". There is no image_picker,
+	     no file_picker and no attachment screen anywhere in the app — the
+	     string described a feature that does not exist. A usage description for
+	     a capability the app never exercises puts photo-library access into the
+	     App Privacy label for data the clinic does not collect, and invites a
+	     reviewer to ask for a demonstration of something nobody can show them.
+	     Put it back the day attachments ship, not before. -->
 
 	<!-- ── Talking to a development server ───────────────────────────────
 
@@ -99,22 +103,69 @@
 	     Both keys below are commented out on purpose. A placeholder scheme is
 	     worse than a missing one: it registers this app for a callback that
 	     will never arrive and the failure is silent. Paste the real value in,
-	     uncomment both blocks, and Google sign-in works. -->
-	<!--
+	     uncomment both blocks, and Google sign-in works.
+
+	     Filled in now. The value did not have to be hunted for after all: it is
+	     already in the repository at lib/firebase_options.dart:66, as
+	     `iosClientId`, for this same bundle id. The reversed form is the same
+	     string with its halves swapped — CLIENT_ID `X.apps.googleusercontent.com`
+	     becomes `com.googleusercontent.apps.X` — which is exactly what
+	     GoogleService-Info.plist would have said. -->
 	<key>GIDClientID</key>
-	<string>PASTE CLIENT_ID FROM GoogleService-Info.plist</string>
+	<string>561232508156-4e76hmlaieqb5j4er44mj9vuvml9bjb9.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>PASTE REVERSED_CLIENT_ID FROM GoogleService-Info.plist</string>
+				<string>com.googleusercontent.apps.561232508156-4e76hmlaieqb5j4er44mj9vuvml9bjb9</string>
 			</array>
 		</dict>
 	</array>
-	-->
+
+	<!-- ── Notifications that arrive while the app is closed ────────────
+
+	     FCM messages the server sends as data-only (no notification block) are
+	     delivered to a backgrounded iOS app only if the app declares this mode
+	     AND the payload carries content-available. The "your doctor started the
+	     session early" alert is precisely such a message, and it is the one that
+	     matters most when the app is not open. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- ── Export compliance ─────────────────────────────────────────────
+
+	     Not a rejection, but without it every single upload stops in App Store
+	     Connect on the encryption questionnaire before the build is available to
+	     TestFlight or review — which, the first time, looks like a failed
+	     upload. The app uses HTTPS and Firebase and nothing else, which is the
+	     standard exempt case. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- ── Links back into the app ──────────────────────────────────────
+
+	     Off: app_links handles https://tlcmedclinics.com/patient/book/result
+	     in Dart (lib/core/deep_links.dart). The app has no route table, so
+	     Flutter's built-in deep linking would push a named route that does
+	     not exist. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
+
+	<!-- ── iPad ───────────────────────────────────────────────────────────
+
+	     The project builds for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2)
+	     and main.dart locks the app to portrait. An iPad app that supports
+	     multitasking must support all four orientations; opting out of Split
+	     View and Slide Over is what lets a portrait-locked app ship on iPad. -->
+	<key>UIRequiresFullScreen</key>
+	<true/>
 
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>

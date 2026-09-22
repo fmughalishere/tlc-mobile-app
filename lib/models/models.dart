@@ -12,6 +12,12 @@
 /// app and will do both.
 library;
 
+// The only import this file has, and the only one it should ever grow: a
+// handful of getters here produce words rather than data — the honorific in
+// front of a doctor's name, the fallback when a name is blank — and those have
+// to follow the language the patient chose.
+import '../i18n/strings.dart';
+
 String _str(dynamic v) => v == null ? '' : v.toString();
 String? _strOrNull(dynamic v) {
   if (v == null) return null;
@@ -171,14 +177,24 @@ class Doctor {
         active: json['active'] != false,
       );
 
-  /// "Dr. " is added here rather than stored, so the clinic never has to
-  /// remember to type it and no name ends up with two of them.
+  /// The honorific is added here rather than stored, so the clinic never has
+  /// to remember to type it and no name ends up with two of them.
+  ///
+  /// It is also the one piece of a doctor's name the app is entitled to
+  /// translate. The name itself stays as the clinic wrote it — transliterating
+  /// somebody's name is not the app's business — but "Dr." in front of it on
+  /// an otherwise Urdu screen is the app's own word, and it reads as a lapse.
   String get displayName {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) return 'Doctor';
+    final urdu = LocaleController.urdu;
+    if (trimmed.isEmpty) return urdu ? 'ڈاکٹر' : 'Doctor';
     final lower = trimmed.toLowerCase();
-    if (lower.startsWith('dr ') || lower.startsWith('dr.')) return trimmed;
-    return 'Dr. $trimmed';
+    if (lower.startsWith('dr ') ||
+        lower.startsWith('dr.') ||
+        trimmed.startsWith('ڈاکٹر')) {
+      return trimmed;
+    }
+    return urdu ? 'ڈاکٹر $trimmed' : 'Dr. $trimmed';
   }
 
   String get initials {
@@ -373,11 +389,23 @@ class AppNotification {
     required this.read,
     required this.createdAt,
     this.appointmentId,
+    this.titleUr,
+    this.messageUr,
   });
 
   final String id;
   final String title;
   final String message;
+
+  /// The server writes every notification in both languages. Older rows,
+  /// written before that, have no Urdu and fall back to English.
+  final String? titleUr;
+  final String? messageUr;
+
+  String get displayTitle =>
+      LocaleController.urdu && (titleUr ?? '').isNotEmpty ? titleUr! : title;
+  String get displayMessage =>
+      LocaleController.urdu && (messageUr ?? '').isNotEmpty ? messageUr! : message;
   final String type;
   final bool read;
   final String createdAt;
@@ -391,6 +419,8 @@ class AppNotification {
         read: json['read'] == true,
         createdAt: _str(json['createdAt']),
         appointmentId: _strOrNull(json['appointmentId']),
+        titleUr: _strOrNull(json['titleUr']),
+        messageUr: _strOrNull(json['messageUr']),
       );
 }
 

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
+import '../../data/chat_repository.dart';
+import '../../i18n/chat_strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../chat/chat_screen.dart';
 
 /// A compact row for the overview: time, patient, service, status.
 ///
@@ -11,6 +14,10 @@ import '../../widgets/common.dart';
 /// different questions. This one answers "what is my day", so the time leads
 /// and nothing is actionable. The full card answers "what do I do about this
 /// one", and is mostly buttons.
+///
+/// The one exception is chat: on a chat consultation that is open (or that
+/// the doctor, as host, may open early) the row offers "Message patient",
+/// which opens the same encrypted thread the website uses.
 class DoctorAppointmentRow extends StatelessWidget {
   const DoctorAppointmentRow({super.key, required this.appointment, this.onTap});
 
@@ -21,6 +28,8 @@ class DoctorAppointmentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final a = appointment;
+    final canMessage = ChatAccess.isChatAppointment(a) &&
+        ChatAccess.closedReason(a, asHost: true) == null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -96,6 +105,24 @@ class DoctorAppointmentRow extends StatelessWidget {
                     style: const TextStyle(fontSize: 12, height: 1.4, color: Palette.inkSoft),
                   ),
                 ),
+                if (canMessage)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 58, top: 4),
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ChatScreen(appointment: a, asHost: true),
+                        ),
+                      ),
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17),
+                      label: Text(ChatStrings.t('chat.messagePatient')),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Palette.indigoDeep,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

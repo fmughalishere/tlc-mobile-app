@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -8,9 +11,26 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// The upload key, read from android/key.properties — a file that is NOT in the
+// repository and must never be. It holds the password to the one key that can
+// ever publish an update to this app: lose it and the listing cannot be
+// updated, leak it and somebody else can publish as the clinic.
+//
+// Absent (a fresh clone, a CI job that only builds debug), the release build
+// falls back to the debug key so `flutter run --release` still works locally.
+// It will not produce an uploadable bundle, which is the correct outcome —
+// Play rejects a debug-signed bundle outright rather than accepting a build
+// nobody can update later.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { load(it) }
+    }
+}
+
 android {
     namespace = "com.tlcmedclinics.tlc_med_clinics"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
 
     // `ndkVersion` is deliberately not set.
     //
@@ -44,10 +64,19 @@ android {
         applicationId = "com.tlcmedclinics.tlc_med_clinics"
 
         // Set explicitly, not inherited from `flutter.minSdkVersion`.
-        // firebase_auth requires 23, and inheriting means a Flutter upgrade can
-        // silently move it under us.
+        //
+        // The comment said this and the code did the opposite. firebase_auth,
+        // cloud_firestore and firebase_messaging all require 23, and inheriting
+        // means a Flutter version on a different machine can move it under us —
+        // upward into a failed manifest merge, or downward into a build that
+        // installs on a phone where Firebase cannot start.
+        //
+        // targetSdk is pinned for a harder reason: Play has required 35 for new
+        // apps since 31 August 2025, and that requirement must not depend on
+        // which Flutter happens to be on the build machine the day the bundle
+        // is made.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
@@ -55,11 +84,23 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+
     buildTypes {
         release {
-            // TODO (before the Play Store upload): a real upload key.
-            // Until then, debug keys so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                // Local `flutter run --release` only. See the note above.
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

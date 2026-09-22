@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
-import '../../core/config.dart';
 import '../../core/formatting.dart';
 import '../../core/palette.dart';
 import '../../core/session_window.dart';
@@ -14,6 +13,7 @@ import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../doctor/doctor_appointment_card.dart' show modeIcon;
+import '../chat/chat_screen.dart';
 
 /// Every booking in the clinic, and everything the desk can do to one.
 ///
@@ -201,7 +201,11 @@ class _AdminAppointmentsTabState extends State<AdminAppointmentsTab> {
         final token = result.joinToken;
         await openUrl(context, token == null || token.isEmpty ? url : '$url?t=$token');
       } else if (a.mode == 'chat') {
-        await openUrl(context, '${AppConfig.apiBaseUrl}/admin/appointments');
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ChatScreen(appointment: result.appointment, asHost: true),
+          ),
+        );
       }
     });
   }

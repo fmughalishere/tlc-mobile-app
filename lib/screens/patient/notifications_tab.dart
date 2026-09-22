@@ -156,7 +156,7 @@ class NotificationsTab extends StatelessWidget {
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  n.title,
+                                                  n.displayTitle,
                                                   style: TextStyle(
                                                     fontSize: 14,
                                                     fontWeight: n.read
@@ -178,7 +178,7 @@ class NotificationsTab extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            n.message,
+                                            n.displayMessage,
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodyMedium,

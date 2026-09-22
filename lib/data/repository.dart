@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
+
 import '../core/api_client.dart';
 import '../i18n/strings.dart';
 import '../core/config.dart';
@@ -201,10 +203,18 @@ class Repository {
   /// request. A body that says who you are is a body that can lie, and the
   /// thing being claimed here is "deliver this person's medical appointments
   /// to my device".
-  Future<void> registerPushToken(String token, {String? platform}) async {
+  Future<void> registerPushToken(
+    String token, {
+    String? platform,
+    String? locale,
+  }) async {
     await _api.post('/api/push/token', {
       'token': token,
       if (platform != null) 'platform': platform,
+      // Which language the server should write this phone's lock-screen
+      // notifications in. The OS draws those itself, so the choice has to be
+      // made when the push is sent, not when it arrives.
+      if (locale != null) 'locale': locale,
     });
   }
 
@@ -387,6 +397,34 @@ class Repository {
         'specialization': specialization.trim(),
     }));
     return body['approvalStatus'] == 'pending' || (wantsDoctor && body['role'] == 'doctor');
+  }
+
+  /// Closes the signed-in patient's account for good: `POST /api/account/delete`
+  /// with `{ "confirm": "DELETE" }`.
+  ///
+  /// The server cancels upcoming appointments and frees their slots, takes the
+  /// patient's name and phone off past visits (the clinical record itself is
+  /// kept), removes push tokens, empties the profile, and deletes the Firebase
+  /// Auth user last. It answers `{ ok: true }`; a doctor or admin gets 403, a
+  /// missing confirmation 400, and a failure part-way 500 with an `error`.
+  ///
+  /// `"DELETE"` is sent whatever language the person typed the confirmation
+  /// in — it is the server's own guard word, not what they saw.
+  ///
+  /// A 401 means the token went stale, not that the account cannot be closed:
+  /// the token is force-refreshed once and the request tried again. The Admin
+  /// SDK does the deletion, so Firebase's "requires recent login" does not
+  /// apply here.
+  Future<void> deleteAccount() async {
+    const body = {'confirm': 'DELETE'};
+    try {
+      await _api.post('/api/account/delete', body);
+    } on ApiException catch (e) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (e.statusCode != 401 || user == null) rethrow;
+      await user.getIdToken(true);
+      await _api.post('/api/account/delete', body);
+    }
   }
 
   // ── Notifications ─────────────────────────────────────────────────────────
