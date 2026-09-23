@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/app_data.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/date_range_bar.dart';
 import '../appointments/appointment_detail_screen.dart';
 import '../booking/book_screen.dart';
 import 'home_tab.dart' show AppointmentCard;
@@ -34,14 +35,24 @@ class AppointmentsTab extends StatelessWidget {
             ],
           ),
         ),
-        body: !data.appointmentsLoaded && data.appointmentsLoading
-            ? const LoadingView()
-            : TabBarView(
-                children: [
-                  _List(items: data.upcoming, upcoming: true),
-                  _List(items: data.past, upcoming: false),
-                ],
-              ),
+        // The filter sits above the tabs, not inside one: it narrows the
+        // whole record, and the Upcoming/Past split is then applied to
+        // whatever came back. The tab counts in the bar above update with it.
+        body: Column(
+          children: [
+            const DateRangeBar(),
+            Expanded(
+              child: !data.appointmentsLoaded && data.appointmentsLoading
+                  ? const LoadingView()
+                  : TabBarView(
+                      children: [
+                        _List(items: data.upcoming, upcoming: true),
+                        _List(items: data.past, upcoming: false),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

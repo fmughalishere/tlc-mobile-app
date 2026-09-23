@@ -30,7 +30,13 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.tlcmedclinics.tlc_med_clinics"
-    compileSdk = 35
+    // 36, not 35. compileSdk only decides which Android APIs the code can be
+    // compiled against — it changes nothing on a patient's phone. The current
+    // AndroidX libraries (androidx.core 1.17, androidx.browser 1.9) and the
+    // app_links / google_sign_in / url_launcher / webview / shared_preferences
+    // plugins refuse to build against anything lower. targetSdk, below, is the
+    // one that changes runtime behaviour, and stays where Play requires it.
+    compileSdk = 36
 
     // `ndkVersion` is deliberately not set.
     //
@@ -63,18 +69,13 @@ android {
     defaultConfig {
         applicationId = "com.tlcmedclinics.tlc_med_clinics"
 
-        // Set explicitly, not inherited from `flutter.minSdkVersion`.
+        // minSdk follows Flutter's own default (24 on current Flutter), which is
+        // above the 23 that firebase_auth, cloud_firestore and firebase_messaging
+        // need. Pinning it lower would fight newer plugins.
         //
-        // The comment said this and the code did the opposite. firebase_auth,
-        // cloud_firestore and firebase_messaging all require 23, and inheriting
-        // means a Flutter version on a different machine can move it under us —
-        // upward into a failed manifest merge, or downward into a build that
-        // installs on a phone where Firebase cannot start.
-        //
-        // targetSdk is pinned for a harder reason: Play has required 35 for new
-        // apps since 31 August 2025, and that requirement must not depend on
-        // which Flutter happens to be on the build machine the day the bundle
-        // is made.
+        // targetSdk is pinned: Play has required 35 for new apps since
+        // 31 August 2025, and that must not depend on which Flutter happens to
+        // be on the build machine the day the bundle is made.
         minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode

@@ -265,6 +265,17 @@ class Strings {
         'This time is held for you until you pay. Payment is completed on the provider\u2019s own secure page.',
 
     'appt.title': 'Appointments',
+
+    // The date filter above every appointments list — patient, doctor, clinic.
+    'range.from': 'From',
+    'range.to': 'To',
+    'range.today': 'Today',
+    'range.week': 'Last 7 days',
+    'range.month': 'Last 30 days',
+    'range.upcoming': 'Next 30 days',
+    'range.clear': 'Clear dates',
+    'range.matched': 'in these dates',
+    'range.empty': 'No appointments in these dates.',
     'appt.upcoming': 'Upcoming',
     'appt.past': 'Past',
     'appt.empty': 'No appointments yet.',
@@ -946,6 +957,16 @@ class Strings {
         'یہ وقت ادائیگی تک آپ کے لیے محفوظ ہے۔ ادائیگی ادارے کے اپنے محفوظ صفحے پر مکمل ہوتی ہے۔',
 
     'appt.title': 'اپائنٹمنٹس',
+
+    'range.from': 'اس تاریخ سے',
+    'range.to': 'اس تاریخ تک',
+    'range.today': 'آج',
+    'range.week': 'پچھلے 7 دن',
+    'range.month': 'پچھلے 30 دن',
+    'range.upcoming': 'اگلے 30 دن',
+    'range.clear': 'تاریخیں ہٹائیں',
+    'range.matched': 'ان تاریخوں میں',
+    'range.empty': 'ان تاریخوں میں کوئی اپائنٹمنٹ نہیں۔',
     'appt.upcoming': 'آنے والی',
     'appt.past': 'گزشتہ',
     'appt.empty': 'ابھی کوئی اپائنٹمنٹ نہیں۔',

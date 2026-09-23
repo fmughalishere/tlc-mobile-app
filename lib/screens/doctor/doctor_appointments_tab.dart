@@ -12,6 +12,7 @@ import '../../data/repository.dart';
 import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/date_range_bar.dart';
 import 'doctor_appointment_card.dart';
 import 'follow_up_screen.dart';
 import 'prescription_screen.dart';
@@ -189,7 +190,13 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
             .contains(_query);
       }).toList();
     }
-    visible = [...visible]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // With a date range on, the server already ordered these by day — sorting
+    // them by booking time here would undo that and shuffle a week's list.
+    visible = [...visible]..sort(
+        (a, b) => data.apptRanged
+            ? '${b.date} ${b.time}'.compareTo('${a.date} ${a.time}')
+            : b.createdAt.compareTo(a.createdAt),
+      );
 
     return Scaffold(
       appBar: AppBar(
@@ -243,6 +250,7 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
               },
             ),
           ),
+          DateRangeBar(count: visible.length),
           const SizedBox(height: 8),
           Expanded(
             child: !data.appointmentsLoaded && data.appointmentsLoading

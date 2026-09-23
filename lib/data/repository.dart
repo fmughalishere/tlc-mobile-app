@@ -104,11 +104,27 @@ class Repository {
   /// The caller's own appointments. Scoping is done by the server from the
   /// token — a patient gets theirs, a doctor gets the ones assigned to them.
   /// The app never sends a patient id, and could not usefully lie about one.
-  Future<List<Appointment>> appointments({String? status, int limit = 50}) async {
+  ///
+  /// [from] and [to] are an inclusive YYYY-MM-DD range — the date filter above
+  /// the list. Both are optional and either may be given alone. The server
+  /// applies them in Firestore rather than the app filtering a list it had to
+  /// download first, which on a phone is the difference between a filter and a
+  /// download.
+  ///
+  /// A ranged reply is not paged: it comes back ordered by date, newest day
+  /// first, up to [limit]. Widen [limit] rather than expecting a cursor.
+  Future<List<Appointment>> appointments({
+    String? status,
+    String? from,
+    String? to,
+    int limit = 50,
+  }) async {
     final rows = _list(
       await _api.get('/api/appointments', query: {
         'limit': '$limit',
         if (status != null && status.isNotEmpty) 'status': status,
+        if (from != null && from.isNotEmpty) 'from': from,
+        if (to != null && to.isNotEmpty) 'to': to,
       }),
       'appointments',
     );
@@ -591,11 +607,18 @@ class Repository {
   /// list too. Bounded at 500: the roll-up is ordered by last-seen, so if a
   /// doctor ever passes that the rows that fall off are the ones they saw
   /// longest ago.
-  Future<List<Appointment>> doctorAppointments({int limit = 500, String? patientId}) async {
+  Future<List<Appointment>> doctorAppointments({
+    int limit = 500,
+    String? patientId,
+    String? from,
+    String? to,
+  }) async {
     final rows = _list(
       await _api.get('/api/appointments', query: {
         'limit': '$limit',
         if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
+        if (from != null && from.isNotEmpty) 'from': from,
+        if (to != null && to.isNotEmpty) 'to': to,
       }),
       'appointments',
     );

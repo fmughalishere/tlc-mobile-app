@@ -111,6 +111,34 @@ class AppData extends ChangeNotifier {
   /// longest ago.
   int _appointmentsLimit = 100;
 
+  /// The date filter above the appointments list, empty by default.
+  ///
+  /// Held here rather than in the three tabs that show it because all three
+  /// read the same `_appointments`: a range kept in one screen would be
+  /// invisible to the next one, and the list underneath it would already have
+  /// been fetched without it.
+  ///
+  /// Both are YYYY-MM-DD, the same shape the appointments are stored with, so
+  /// nothing between here and Firestore has to parse a date.
+  String _apptFrom = '';
+  String _apptTo = '';
+
+  String get apptFrom => _apptFrom;
+  String get apptTo => _apptTo;
+  bool get apptRanged => _apptFrom.isNotEmpty || _apptTo.isNotEmpty;
+
+  /// Sets the range and refetches. The list is re-read from the server rather
+  /// than filtered here: the phone only ever holds one window of appointments,
+  /// so filtering locally would hide rows that were never downloaded and call
+  /// it an empty week.
+  Future<void> setAppointmentRange(String from, String to) async {
+    if (from == _apptFrom && to == _apptTo) return;
+    _apptFrom = from;
+    _apptTo = to;
+    notifyListeners();
+    await refreshAppointments();
+  }
+
   /// Who is signed in, kept only so a missing `users/{uid}` document can be
   /// written back. See `_healProfile`.
   String? _uid;
@@ -145,6 +173,11 @@ class AppData extends ChangeNotifier {
   /// shared phone sees the previous patient's appointments for a second.
   void onSignedOut() {
     _appointments = const [];
+    // The next person on a shared phone should not inherit the last one's
+    // filter either — an empty list under someone else's date range reads as
+    // "you have no appointments".
+    _apptFrom = '';
+    _apptTo = '';
     _appointmentsLoaded = false;
     _appointmentsError = null;
     _notifications = const [];
@@ -185,7 +218,11 @@ class AppData extends ChangeNotifier {
     _appointmentsError = null;
     notifyListeners();
     try {
-      _appointments = await _repo.appointments(limit: _appointmentsLimit);
+      _appointments = await _repo.appointments(
+        limit: _appointmentsLimit,
+        from: _apptFrom.isEmpty ? null : _apptFrom,
+        to: _apptTo.isEmpty ? null : _apptTo,
+      );
       _appointmentsError = null;
     } catch (error) {
       _appointmentsError = error;

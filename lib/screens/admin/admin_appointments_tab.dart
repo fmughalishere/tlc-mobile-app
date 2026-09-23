@@ -12,6 +12,7 @@ import '../../data/repository.dart';
 import '../../i18n/strings.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/date_range_bar.dart';
 import '../doctor/doctor_appointment_card.dart' show modeIcon;
 import '../chat/chat_screen.dart';
 
@@ -229,7 +230,13 @@ class _AdminAppointmentsTabState extends State<AdminAppointmentsTab> {
             .contains(_query);
       }).toList();
     }
-    visible = [...visible]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // A ranged reply is already ordered by day, server-side. Re-sorting it by
+    // booking time here would shuffle the week back out of order.
+    visible = [...visible]..sort(
+        (a, b) => data.apptRanged
+            ? '${b.date} ${b.time}'.compareTo('${a.date} ${a.time}')
+            : b.createdAt.compareTo(a.createdAt),
+      );
 
     final needsDoctorCount =
         data.appointments.where((a) => a.needsDoctor && a.isUpcoming).length;
@@ -295,6 +302,7 @@ class _AdminAppointmentsTabState extends State<AdminAppointmentsTab> {
               },
             ),
           ),
+          DateRangeBar(count: visible.length),
           const SizedBox(height: 8),
           Expanded(
             child: !data.appointmentsLoaded && data.appointmentsLoading
