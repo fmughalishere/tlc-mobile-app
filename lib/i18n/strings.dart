@@ -209,6 +209,13 @@ class Strings {
     'book.inClinic': 'At the clinic',
     'book.inClinicSub': 'Visit us in Lahore',
     'book.noSlots': 'No open times for this right now.',
+
+    // Shown only when the OTHER mode has times — see _NoTimesHere in
+    // book_screen.dart. {n} is filled in at render time.
+    'book.tryInClinic': 'There are {n} times open at the clinic for this service.',
+    'book.tryOnline': 'There are {n} online times open for this service.',
+    'book.switchInClinic': 'See clinic visit times',
+    'book.switchOnline': 'See online times',
     'book.noSlotsSub':
         'You can ask the clinic to arrange one — they will call you to fix a time.',
     'book.requestInstead': 'Ask the clinic to arrange a time',
@@ -902,6 +909,11 @@ class Strings {
     'book.inClinic': 'کلینک میں',
     'book.inClinicSub': 'لاہور میں ہم سے ملیں',
     'book.noSlots': 'اِس وقت کوئی خالی وقت دستیاب نہیں۔',
+
+    'book.tryInClinic': 'اِس سروس کے لیے کلینک میں {n} اوقات خالی ہیں۔',
+    'book.tryOnline': 'اِس سروس کے لیے آن لائن {n} اوقات خالی ہیں۔',
+    'book.switchInClinic': 'کلینک وزٹ کے اوقات دیکھیں',
+    'book.switchOnline': 'آن لائن اوقات دیکھیں',
     'book.noSlotsSub': 'آپ کلینک سے وقت طے کرنے کی درخواست کر سکتی ہیں — وہ آپ کو کال کریں گے۔',
     'book.requestInstead': 'کلینک سے وقت طے کرنے کی درخواست کریں',
     'book.preferredWhen': 'آپ کو کون سا وقت مناسب رہے گا؟',

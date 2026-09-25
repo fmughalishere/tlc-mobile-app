@@ -542,9 +542,14 @@ class _BookScreenState extends State<BookScreen> {
         );
       case 2:
         return _SlotStep(
+          // Keyed on the mode: AsyncView loads once, in initState, so without
+          // this the list would keep showing the old mode's times after the
+          // patient switched.
+          key: ValueKey('slots-${_service!.id}-$_mode'),
           repo: _repo,
           service: _service!,
           mode: _mode,
+          onSwitchMode: (mode) => setState(() => _mode = mode),
           onPick: (slot) => setState(() {
             _slot = slot;
             _requesting = false;
@@ -773,15 +778,138 @@ class _ModeStep extends StatelessWidget {
   }
 }
 
+/// "No times" — before saying so, it checks the other mode.
+///
+/// The two sides of this product disagreed about what a new slot is by
+/// default: the doctor's page on the website opens times as **in-clinic**,
+/// and a patient in the app arrives at this step having usually chosen
+/// **online**. A doctor could open a full week and every patient would be
+/// told there was nothing — the clinic would never know, because from their
+/// side the calendar looks full.
+///
+/// Fixing the defaults alone would not fix it: a doctor may genuinely open
+/// only in-clinic times, and a patient may genuinely want a video call. So
+/// the empty state does the one useful thing instead of guessing — it looks
+/// at the other mode and, if there are times there, says so and offers to
+/// switch. One extra request, made only when the first one came back empty.
+class _NoTimesHere extends StatefulWidget {
+  const _NoTimesHere({
+    required this.repo,
+    required this.service,
+    required this.mode,
+    required this.onRequestInstead,
+    required this.onSwitchMode,
+  });
+
+  final Repository repo;
+  final Service service;
+  final String mode;
+  final VoidCallback onRequestInstead;
+  final void Function(String mode) onSwitchMode;
+
+  @override
+  State<_NoTimesHere> createState() => _NoTimesHereState();
+}
+
+class _NoTimesHereState extends State<_NoTimesHere> {
+  int? _otherCount;
+
+  String get _other => widget.mode == 'online' ? 'in-clinic' : 'online';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOther();
+  }
+
+  Future<void> _checkOther() async {
+    try {
+      final slots = await widget.repo.availableSlots(
+        service: widget.service.name,
+        mode: _other,
+      );
+      if (mounted) setState(() => _otherCount = slots.length);
+    } catch (_) {
+      // Silent on purpose. This is a helpful extra, not the screen's job —
+      // if it fails the patient still gets the empty state and the request
+      // button, which is exactly what they had before.
+      if (mounted) setState(() => _otherCount = 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final count = _otherCount ?? 0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+      children: [
+        EmptyState(
+          icon: Icons.event_busy_outlined,
+          title: l10n.t('book.noSlots'),
+          message: l10n.t('book.noSlotsSub'),
+        ),
+
+        if (count > 0) ...[
+          const SizedBox(height: 22),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Palette.paperDim,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Palette.line),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  l10n.t(
+                    _other == 'in-clinic'
+                        ? 'book.tryInClinic'
+                        : 'book.tryOnline',
+                  ).replaceFirst('{n}', '$count'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13.5, height: 1.45),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () => widget.onSwitchMode(_other),
+                  child: Text(
+                    l10n.t(
+                      _other == 'in-clinic'
+                          ? 'book.switchInClinic'
+                          : 'book.switchOnline',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 26),
+        // Still here, always: the clinic can be phoned into an appointment
+        // even when no calendar is open at all.
+        OutlinedButton(
+          onPressed: widget.onRequestInstead,
+          child: Text(l10n.t('book.requestInstead')),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Step 3: the time ────────────────────────────────────────────────────────
 
 class _SlotStep extends StatelessWidget {
   const _SlotStep({
+    super.key,
     required this.repo,
     required this.service,
     required this.mode,
     required this.onPick,
     required this.onRequestInstead,
+    required this.onSwitchMode,
   });
 
   final Repository repo;
@@ -789,6 +917,9 @@ class _SlotStep extends StatelessWidget {
   final String mode;
   final void Function(Slot) onPick;
   final VoidCallback onRequestInstead;
+
+  /// Switches the booking to the other mode — see [_NoTimesHere].
+  final void Function(String mode) onSwitchMode;
 
   @override
   Widget build(BuildContext context) {
@@ -798,23 +929,13 @@ class _SlotStep extends StatelessWidget {
       load: () => repo.availableSlots(service: service.name, mode: mode),
       builder: (context, slots, reload) {
         if (slots.isEmpty) {
-          // Not a dead end. The clinic's own booking flow has this same
-          // escape hatch, because "no times" usually means "no doctor
-          // covering this has opened their calendar yet", not "never".
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-            children: [
-              EmptyState(
-                icon: Icons.event_busy_outlined,
-                title: l10n.t('book.noSlots'),
-                message: l10n.t('book.noSlotsSub'),
-              ),
-              const SizedBox(height: 26),
-              FilledButton(
-                onPressed: onRequestInstead,
-                child: Text(l10n.t('book.requestInstead')),
-              ),
-            ],
+          // Not a dead end, and not necessarily even empty — see _NoTimesHere.
+          return _NoTimesHere(
+            repo: repo,
+            service: service,
+            mode: mode,
+            onRequestInstead: onRequestInstead,
+            onSwitchMode: onSwitchMode,
           );
         }
 

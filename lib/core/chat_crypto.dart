@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+// Uint8List comes from here — foundation re-exports dart:typed_data, so
+// importing both made the analyzer (rightly) call one of them redundant.
 import 'package:flutter/foundation.dart';
 
 /// The app's half of the website's chat encryption
